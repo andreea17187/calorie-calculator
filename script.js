@@ -3,6 +3,23 @@ const errorBox = document.querySelector('#form-error');
 const resultsPanel = document.querySelector('#results');
 const emptyResults = resultsPanel.querySelector('.results-empty');
 const resultsContent = resultsPanel.querySelector('.results-content');
+const userScopedStorageKeys = new Set([
+  'calorie-calculator-journal',
+  'calorie-calculator-favorites',
+  'calorie-calculator-goals',
+  'calorie-calculator-recipes',
+  'calorie-calculator-custom-foods'
+]);
+
+function getStorageKey(key) {
+  if (!userScopedStorageKeys.has(key)) return key;
+  try {
+    const session = JSON.parse(localStorage.getItem('calorie-calculator-session') || 'null');
+    return session?.email ? `${key}::${encodeURIComponent(session.email)}` : key;
+  } catch {
+    return key;
+  }
+}
 document.querySelector('#recipe-name').placeholder = 'Denumire mâncare';
 
 const formatNumber = (value) => new Intl.NumberFormat('ro-RO').format(Math.round(value));
@@ -88,12 +105,48 @@ const foodDatabase = {
   banana: { name: 'Banană', calories: 89, protein: 1.1, carbs: 22.8, fats: 0.3, fiber: 2.6, units: { piece: 118 } },
   apple: { name: 'Măr', calories: 52, protein: 0.3, carbs: 13.8, fats: 0.2, fiber: 2.4, units: { piece: 182 } },
   yogurt: { name: 'Iaurt grecesc', calories: 97, protein: 9, carbs: 3.9, fats: 5, fiber: 0, units: { tablespoon: 15, teaspoon: 5 } },
+  yogurt10: { name: 'Iaurt grecesc 10% grăsime', calories: 133, protein: 6.3, carbs: 4.7, fats: 10, fiber: 0, units: { tablespoon: 15, teaspoon: 5 } },
+  yogurt2: { name: 'Iaurt grecesc 2% grăsime', calories: 73, protein: 10.3, carbs: 4.1, fats: 2, fiber: 0, units: { tablespoon: 15, teaspoon: 5 } },
   salmon: { name: 'Somon', calories: 208, protein: 20.4, carbs: 0, fats: 13.4, fiber: 0, units: {} },
   lentils: { name: 'Linte gătită', calories: 116, protein: 9, carbs: 20.1, fats: 0.4, fiber: 7.9, units: { tablespoon: 15 } },
   mozzarella: { name: 'Mozzarella', calories: 280, protein: 28, carbs: 3.1, fats: 17, fiber: 0, units: {} },
   tomato: { name: 'Roșie', calories: 18, protein: 0.9, carbs: 3.9, fats: 0.2, fiber: 1.2, units: { piece: 123 } },
   honey: { name: 'Miere', calories: 304, protein: 0.3, carbs: 82.4, fats: 0, fiber: 0, units: { tablespoon: 21, teaspoon: 7 } },
-  peanutButter: { name: 'Unt de arahide', calories: 588, protein: 25, carbs: 20, fats: 50, fiber: 6, units: { tablespoon: 16, teaspoon: 5 } }
+  peanutButter: { name: 'Unt de arahide', calories: 588, protein: 25, carbs: 20, fats: 50, fiber: 6, units: { tablespoon: 16, teaspoon: 5 } },
+  avocado: { name: 'Avocado', calories: 160, protein: 2, carbs: 8.5, fats: 14.7, fiber: 6.7, units: { piece: 150 } },
+  broccoli: { name: 'Broccoli', calories: 34, protein: 2.8, carbs: 6.6, fats: 0.4, fiber: 2.6, units: {} },
+  spinach: { name: 'Spanac', calories: 23, protein: 2.9, carbs: 3.6, fats: 0.4, fiber: 2.2, units: {} },
+  cucumber: { name: 'Castravete', calories: 15, protein: 0.7, carbs: 3.6, fats: 0.1, fiber: 0.5, units: { piece: 200 } },
+  onion: { name: 'Ceapă', calories: 40, protein: 1.1, carbs: 9.3, fats: 0.1, fiber: 1.7, units: { piece: 110 } },
+  tuna: { name: 'Ton în suc propriu', calories: 116, protein: 26, carbs: 0, fats: 1, fiber: 0, units: {} },
+  cottageCheese: { name: 'Brânză cottage', calories: 98, protein: 11.1, carbs: 3.4, fats: 4.3, fiber: 0, units: {} },
+  feta: { name: 'Brânză feta', calories: 264, protein: 14.2, carbs: 4.1, fats: 21.3, fiber: 0, units: {} },
+  milk: { name: 'Lapte', calories: 61, protein: 3.2, carbs: 4.8, fats: 3.3, fiber: 0, units: { glass: 250 } },
+  milk3: { name: 'Lapte 3% grăsime', calories: 61, protein: 3.2, carbs: 4.8, fats: 3, fiber: 0, units: { glass: 250 } },
+  milk15: { name: 'Lapte 1,5% grăsime', calories: 46, protein: 3.4, carbs: 4.9, fats: 1.5, fiber: 0, units: { glass: 250 } },
+  wholegrainBread: { name: 'Pâine integrală', calories: 247, protein: 13, carbs: 41, fats: 4.2, fiber: 7, units: { piece: 35 } },
+  pasta: { name: 'Paste gătite', calories: 158, protein: 5.8, carbs: 30.9, fats: 0.9, fiber: 1.8, units: {} },
+  quinoa: { name: 'Quinoa gătită', calories: 120, protein: 4.4, carbs: 21.3, fats: 1.9, fiber: 2.8, units: {} },
+  strawberry: { name: 'Căpșuni', calories: 32, protein: 0.7, carbs: 7.7, fats: 0.3, fiber: 2, units: { piece: 18 } },
+  blueberry: { name: 'Afine', calories: 57, protein: 0.7, carbs: 14.5, fats: 0.3, fiber: 2.4, units: { piece: 2 } },
+  raspberry: { name: 'Zmeură', calories: 52, protein: 1.2, carbs: 11.9, fats: 0.7, fiber: 6.5, units: { piece: 4 } },
+  nectarine: { name: 'Nectarină', calories: 44, protein: 1.1, carbs: 10.6, fats: 0.3, fiber: 1.7, units: { piece: 140 } },
+  orange: { name: 'Portocală', calories: 47, protein: 0.9, carbs: 11.8, fats: 0.1, fiber: 2.4, units: { piece: 130 } },
+  pear: { name: 'Pară', calories: 57, protein: 0.4, carbs: 15.2, fats: 0.1, fiber: 3.1, units: { piece: 178 } },
+  peach: { name: 'Piersică', calories: 39, protein: 0.9, carbs: 9.5, fats: 0.3, fiber: 1.5, units: { piece: 150 } },
+  kiwi: { name: 'Kiwi', calories: 61, protein: 1.1, carbs: 14.7, fats: 0.5, fiber: 3, units: { piece: 75 } },
+  mango: { name: 'Mango', calories: 60, protein: 0.8, carbs: 15, fats: 0.4, fiber: 1.6, units: { piece: 200 } },
+  pineapple: { name: 'Ananas', calories: 50, protein: 0.5, carbs: 13.1, fats: 0.1, fiber: 1.4, units: {} },
+  grapes: { name: 'Struguri', calories: 69, protein: 0.7, carbs: 18.1, fats: 0.2, fiber: 0.9, units: { piece: 5 } },
+  carrot: { name: 'Morcov', calories: 41, protein: 0.9, carbs: 9.6, fats: 0.2, fiber: 2.8, units: { piece: 61 } },
+  bellPepper: { name: 'Ardei gras', calories: 31, protein: 1, carbs: 6, fats: 0.3, fiber: 2.1, units: { piece: 120 } },
+  zucchini: { name: 'Dovlecel', calories: 17, protein: 1.2, carbs: 3.1, fats: 0.3, fiber: 1, units: { piece: 200 } },
+  cauliflower: { name: 'Conopidă', calories: 25, protein: 1.9, carbs: 5, fats: 0.3, fiber: 2, units: {} },
+  cabbage: { name: 'Varză albă', calories: 25, protein: 1.3, carbs: 5.8, fats: 0.1, fiber: 2.5, units: {} },
+  greenBeans: { name: 'Fasole verde', calories: 31, protein: 1.8, carbs: 7, fats: 0.2, fiber: 2.7, units: {} },
+  mushroom: { name: 'Ciuperci', calories: 22, protein: 3.1, carbs: 3.3, fats: 0.3, fiber: 1, units: {} },
+  sweetPotato: { name: 'Cartof dulce', calories: 86, protein: 1.6, carbs: 20.1, fats: 0.1, fiber: 3, units: { piece: 180 } },
+  beetroot: { name: 'Sfeclă roșie', calories: 43, protein: 1.6, carbs: 9.6, fats: 0.2, fiber: 2.8, units: {} }
 };
 
 const recommendationFoods = {
@@ -108,8 +161,7 @@ const recommendationFoods = {
 Object.assign(foodDatabase, recommendationFoods);
 
 try {
-  const savedFoods = JSON.parse(localStorage.getItem('calorie-calculator-custom-foods') || '{}');
-  Object.assign(foodDatabase, savedFoods);
+  Object.assign(foodDatabase, readStorage('calorie-calculator-custom-foods', {}));
 } catch {
   // Catalogul de bază rămâne disponibil dacă datele locale nu pot fi citite.
 }
@@ -162,10 +214,10 @@ function formatDateDisplay(dateValue) {
 }
 
 function readStorage(key, fallback) {
-  try { return JSON.parse(localStorage.getItem(key)) || fallback; } catch { return fallback; }
+  try { return JSON.parse(localStorage.getItem(getStorageKey(key))) || fallback; } catch { return fallback; }
 }
 
-function saveStorage(key, value) { localStorage.setItem(key, JSON.stringify(value)); }
+function saveStorage(key, value) { localStorage.setItem(getStorageKey(key), JSON.stringify(value)); }
 
 function getDayJournal() {
   const journal = readStorage(storageKeys.journal, {});
@@ -190,7 +242,7 @@ function scaledNutrients(foodKey, amount, unit = 'gram') {
 
 function displayValue(value, suffix = '') { return `${formatDecimal(value)}${suffix}`; }
 function displayQuantity(entry) {
-  const labels = { gram: 'g', piece: entry.amount === 1 ? 'bucată' : 'bucăți', tablespoon: entry.amount === 1 ? 'lingură' : 'linguri', teaspoon: entry.amount === 1 ? 'linguriță' : 'lingurițe' };
+  const labels = { gram: 'g', piece: entry.amount === 1 ? 'bucată' : 'bucăți', tablespoon: entry.amount === 1 ? 'lingură' : 'linguri', teaspoon: entry.amount === 1 ? 'linguriță' : 'lingurițe', glass: entry.amount === 1 ? 'pahar' : 'pahare' };
   return `${formatDecimal(entry.amount)} ${labels[entry.unit || 'gram']}`;
 }
 
@@ -265,7 +317,7 @@ function updateUnitOptions() {
   const food = foodDatabase[document.querySelector('#meal-food').value];
   const unitSelect = document.querySelector('#meal-unit');
   const current = unitSelect.value;
-  const unitLabels = { gram: 'grame (g)', piece: food?.pieceLabel || 'bucată', tablespoon: 'lingură', teaspoon: 'linguriță' };
+  const unitLabels = { gram: 'grame (g)', piece: food?.pieceLabel || 'bucată', tablespoon: 'lingură', teaspoon: 'linguriță', glass: 'pahar' };
   const available = ['gram', ...Object.keys(food?.units || {})];
   unitSelect.innerHTML = available.map((unit) => `<option value="${unit}">${unitLabels[unit]}</option>`).join('');
   unitSelect.value = available.includes(current) ? current : 'gram';
@@ -380,7 +432,7 @@ function renderRecipes() {
 
 function ingredientUnitOptions(foodKey, selected = 'gram') {
   const food = foodDatabase[foodKey];
-  const labels = { gram: 'g', piece: 'bucată / cantitate', tablespoon: 'lingură', teaspoon: 'linguriță' };
+  const labels = { gram: 'g', piece: 'bucată / cantitate', tablespoon: 'lingură', teaspoon: 'linguriță', glass: 'pahar' };
   const availableUnits = foodKey ? Object.keys(food?.units || {}) : ['piece'];
   return ['gram', ...availableUnits].map((unit) => `<option value="${unit}" ${unit === selected ? 'selected' : ''}>${labels[unit]}</option>`).join('');
 }
@@ -506,8 +558,50 @@ function closeRecipeModal() { document.querySelector('#recipe-modal').hidden = t
 
 function saveCustomFoods() {
   const customFoods = Object.fromEntries(Object.entries(foodDatabase).filter(([, food]) => food.custom));
-  localStorage.setItem('calorie-calculator-custom-foods', JSON.stringify(customFoods));
+  saveStorage('calorie-calculator-custom-foods', customFoods);
 }
+
+function renderFoodLibrary() {
+  const target = document.querySelector('#foods-library-list');
+  if (!target) return;
+  const query = document.querySelector('#foods-library-search').value.trim().toLocaleLowerCase('ro');
+  const foods = Object.entries(foodDatabase).filter(([, food]) => food.name.toLocaleLowerCase('ro').includes(query));
+  target.innerHTML = foods.length ? foods.map(([key, food]) => `
+    <article class="food-library-card" data-library-food="${key}">
+      <h3>${food.name}</h3>
+      <small>Valori nutriționale pentru 100 g</small>
+      <form class="food-library-form">
+        <label>Calorii<input name="calories" type="number" min="0" step="0.1" value="${food.calories}"></label>
+        <label>Proteine<input name="protein" type="number" min="0" step="0.1" value="${food.protein}"></label>
+        <label>Carbohidrați<input name="carbs" type="number" min="0" step="0.1" value="${food.carbs}"></label>
+        <label>Grăsimi<input name="fats" type="number" min="0" step="0.1" value="${food.fats}"></label>
+        <label>Fibre<input name="fiber" type="number" min="0" step="0.1" value="${food.fiber}"></label>
+        <div class="food-library-actions"><button class="secondary-button" type="submit">Salvează valorile</button></div>
+      </form>
+    </article>`).join('') : '<div class="food-library-empty">Nu am găsit niciun aliment.</div>';
+}
+
+document.querySelector('#foods-library-search').addEventListener('input', renderFoodLibrary);
+document.querySelector('#foods-library-list').addEventListener('submit', (event) => {
+  event.preventDefault();
+  const card = event.target.closest('[data-library-food]');
+  const food = foodDatabase[card.dataset.libraryFood];
+  const values = Object.fromEntries(['calories', 'protein', 'carbs', 'fats', 'fiber'].map((key) => [key, Number(new FormData(event.target).get(key))]));
+  if (!food || Object.values(values).some((value) => !Number.isFinite(value) || value < 0)) return;
+  Object.assign(food, values, { custom: true });
+  saveCustomFoods();
+  prepareMealForm();
+  renderFoodLibrary();
+  const visibleCard = [...document.querySelectorAll('[data-library-food]')].find((item) => item.dataset.libraryFood === card.dataset.libraryFood);
+  const saveButton = visibleCard?.querySelector('button[type="submit"]');
+  if (!saveButton) return;
+  saveButton.textContent = 'Salvat!';
+  saveButton.classList.add('is-saved');
+  window.setTimeout(() => {
+    saveButton.textContent = 'Salvează valorile';
+    saveButton.classList.remove('is-saved');
+  }, 1400);
+});
 
 document.querySelector('#add-custom-food').addEventListener('click', () => {
   const panel = document.querySelector('#custom-food-panel');
@@ -595,3 +689,80 @@ document.querySelector('#recipes-list').addEventListener('click', (event) => {
   }
 });
 renderRecipes();
+renderFoodLibrary();
+
+const pageLinks = document.querySelectorAll('[data-page]');
+const pageAliases = { 'calculator-section': 'calculator-page', 'recipes-section': 'recipes-page', 'dashboard-section': 'dashboard-page' };
+
+function showPage(pageId) {
+  const resolvedPageId = pageAliases[pageId] || pageId;
+  const page = document.querySelector(`#${resolvedPageId}`) || document.querySelector('#dashboard-page');
+  document.querySelectorAll('.app-page').forEach((item) => item.classList.toggle('is-active', item === page));
+  pageLinks.forEach((link) => link.classList.toggle('active', link.dataset.page === page.id));
+}
+
+function navigateToPage() {
+  showPage(window.location.hash.slice(1) || 'dashboard-page');
+}
+
+window.addEventListener('hashchange', navigateToPage);
+navigateToPage();
+
+const authStorageKey = 'calorie-calculator-users';
+const sessionStorageKey = 'calorie-calculator-session';
+const authTabs = document.querySelectorAll('[data-auth-tab]');
+const authForms = document.querySelectorAll('[data-auth-form]');
+const accountStatus = document.querySelector('#account-status');
+
+function readUsers() { return readStorage(authStorageKey, []); }
+
+function renderAccountState() {
+  const session = readStorage(sessionStorageKey, null);
+  if (!session) {
+    accountStatus.hidden = true;
+    return;
+  }
+  document.querySelector('#login-form').hidden = true;
+  document.querySelector('#register-form').hidden = true;
+  document.querySelector('.auth-tabs').hidden = true;
+  accountStatus.hidden = false;
+  accountStatus.innerHTML = `<strong>Salut, ${session.name}!</strong><br>Ești autentificat cu ${session.email}.<br><button class="reset-button" type="button" id="logout-button">Ieși din cont</button>`;
+  document.querySelector('#logout-button').addEventListener('click', () => {
+    localStorage.removeItem(sessionStorageKey);
+    window.location.hash = 'account-page';
+    window.location.reload();
+  });
+}
+
+authTabs.forEach((tab) => tab.addEventListener('click', () => {
+  authTabs.forEach((item) => item.classList.toggle('is-active', item === tab));
+  authForms.forEach((form) => form.classList.toggle('is-active', form.dataset.authForm === tab.dataset.authTab));
+}));
+
+document.querySelector('#register-form').addEventListener('submit', (event) => {
+  event.preventDefault();
+  const name = document.querySelector('#register-name').value.trim();
+  const email = document.querySelector('#register-email').value.trim().toLowerCase();
+  const password = document.querySelector('#register-password').value;
+  const error = document.querySelector('#register-error');
+  const users = readUsers();
+  if (users.some((user) => user.email === email)) { error.textContent = 'Există deja un cont cu acest email.'; return; }
+  saveStorage(authStorageKey, [...users, { name, email, password }]);
+  saveStorage(sessionStorageKey, { name, email });
+  window.location.hash = 'account-page';
+  window.location.reload();
+});
+
+document.querySelector('#login-form').addEventListener('submit', (event) => {
+  event.preventDefault();
+  const email = document.querySelector('#login-email').value.trim().toLowerCase();
+  const password = document.querySelector('#login-password').value;
+  const error = document.querySelector('#login-error');
+  const user = readUsers().find((item) => item.email === email && item.password === password);
+  if (!user) { error.textContent = 'Emailul sau parola nu sunt corecte.'; return; }
+  saveStorage(sessionStorageKey, { name: user.name, email: user.email });
+  window.location.hash = 'account-page';
+  window.location.reload();
+});
+
+renderAccountState();

@@ -18,15 +18,17 @@
         <span>Calorie <strong>Calculator</strong></span>
       </a>
       <div class="header-note"><span class="status-dot" aria-hidden="true"></span> Calcul simplu. Obiective clare.</div>
-      <nav class="mode-switcher" aria-label="Alege calculatorul">
-        <a class="mode-button active" href="#dashboard-section">Dashboard</a>
-        <a class="mode-button active" href="#calculator-section">Necesar zilnic</a>
-        <a class="mode-button" href="#food-section">Alimente</a>
-        <a class="mode-button" href="#recipes-section">Rețete</a>
+      <nav class="mode-switcher" aria-label="Navigare principală">
+        <a class="mode-button active" href="#dashboard-page" data-page="dashboard-page">Jurnalul alimentar</a>
+        <a class="mode-button" href="#recipes-page" data-page="recipes-page">Rețetele mele</a>
+        <a class="mode-button" href="#foods-page" data-page="foods-page">Alimentele mele</a>
+        <a class="mode-button" href="#calculator-page" data-page="calculator-page">Calcul standard</a>
+        <a class="mode-button" href="#account-page" data-page="account-page">Cont</a>
       </nav>
     </header>
 
     <main>
+      <div class="app-page is-active" id="dashboard-page">
       <section class="dashboard-section" id="dashboard-section" aria-labelledby="dashboard-title">
         <div class="dashboard-topbar">
           <div>
@@ -53,6 +55,19 @@
           </aside>
         </div>
       </section>
+      </div>
+
+      <div class="app-page foods-page" id="foods-page">
+        <section class="foods-library-section" aria-labelledby="foods-library-title">
+          <div class="page-heading foods-library-heading">
+            <p class="eyebrow">Catalogul tău alimentar</p>
+            <h1 id="foods-library-title">Alimentele mele</h1>
+            <p>Caută un ingredient și ajustează estimările nutriționale pentru 100 g.</p>
+          </div>
+          <label class="search-field foods-search"><span>⌕</span><input id="foods-library-search" type="search" placeholder="Caută un aliment..."></label>
+          <div id="foods-library-list" class="foods-library-list"></div>
+        </section>
+      </div>
 
       <div class="food-modal" id="food-modal" hidden>
         <div class="modal-backdrop" data-close-food></div>
@@ -68,6 +83,7 @@
           <form id="recipe-form" class="recipe-form"><label class="field"><span>Denumirea mesei</span><input id="recipe-name" type="text" placeholder="Ex. Ouă cu brânză" required></label><div class="recipe-ingredients-heading"><span>Ingrediente</span><span><button type="button" class="text-button" id="add-custom-food">+ Aliment nou</button> <button type="button" class="text-button" id="add-ingredient">+ Adaugă ingredient</button></span></div><div id="custom-food-panel" class="custom-food-panel" hidden><p class="unit-hint">Salvează valorile alimentului pentru 100 g. Conversia alternativă este opțională.</p><div class="custom-food-grid"><input id="custom-food-name" type="text" placeholder="Nume aliment"><input id="custom-food-calories" type="number" min="0" placeholder="kcal / 100 g"><input id="custom-food-protein" type="number" min="0" step="0.1" placeholder="Proteine"><input id="custom-food-carbs" type="number" min="0" step="0.1" placeholder="Carbohidrați"><input id="custom-food-fats" type="number" min="0" step="0.1" placeholder="Grăsimi"><input id="custom-food-fiber" type="number" min="0" step="0.1" placeholder="Fibre"><input id="custom-food-unit" type="number" min="0" step="0.1" placeholder="g / bucată (opțional)"></div><button type="button" class="secondary-button" id="save-custom-food">Salvează alimentul</button><div id="custom-food-error" class="form-error"></div></div><div id="ingredient-list"></div><div id="recipe-error" class="form-error"></div><div class="recipe-total"><span>Total masă <small id="recipe-serving-total">0 ingrediente</small></span><strong id="recipe-total-calories">0 kcal</strong><div id="recipe-total-macros">P 0 g · C 0 g · G 0 g · F 0 g</div></div><label class="field servings-field"><span>Număr de porții</span><input id="recipe-servings" type="number" min="1" max="100" step="0.5" value="1" required></label><div class="per-serving"><span>1 porție</span><strong id="recipe-per-serving">0 kcal</strong><small id="recipe-per-serving-macros">P 0 g · C 0 g · G 0 g</small></div><div class="modal-actions"><button class="primary-button" type="submit"><span>Salvează masa</span><span class="button-arrow">↗</span></button><button class="reset-button" type="button" data-close-recipe>Anulează</button></div></form>
         </section>
       </div>
+      <div class="app-page" id="calculator-page">
       <section class="hero" aria-labelledby="page-title">
         <div class="hero-copy">
           <p class="eyebrow">Energie pentru fiecare zi</p>
@@ -246,11 +262,44 @@
           </div>
         </div>
       </section>
+      </div>
+      <div class="app-page" id="recipes-page">
       <section class="recipes-section" id="recipes-section" aria-labelledby="recipes-title">
         <div class="recipes-heading"><div><p class="section-kicker">04 / Rețete</p><h2 id="recipes-title">Construiește rețete,<br>nu doar mese.</h2><p>Combină alimentele, setează porțiile și salvează rețetele tale preferate.</p></div><button class="primary-button" type="button" data-open-recipe><span>+ Rețetă nouă</span><span class="button-arrow">↗</span></button></div>
         <div class="recipe-search-row"><label class="search-field"><span>⌕</span><input id="recipe-search" type="search" placeholder="Caută în rețetele salvate..."></label><span id="recipe-count" class="recipe-count"></span></div>
         <div id="recipes-list" class="recipes-list"></div>
       </section>
+      </div>
+
+      <div class="app-page account-page" id="account-page">
+        <section class="account-section" aria-labelledby="account-title">
+          <div class="page-heading account-heading">
+            <p class="eyebrow">Spațiul tău personal</p>
+            <h1 id="account-title">Bun venit.</h1>
+            <p>Salvează-ți mesele, rețetele și alimentele într-un singur loc.</p>
+          </div>
+          <div class="auth-card">
+            <div class="auth-tabs" role="tablist" aria-label="Autentificare">
+              <button class="auth-tab is-active" type="button" data-auth-tab="login">Autentificare</button>
+              <button class="auth-tab" type="button" data-auth-tab="register">Creează cont</button>
+            </div>
+            <form class="auth-form is-active" id="login-form" data-auth-form="login">
+              <label class="field"><span>Email</span><input id="login-email" type="email" autocomplete="email" required></label>
+              <label class="field"><span>Parolă</span><input id="login-password" type="password" autocomplete="current-password" required></label>
+              <div class="form-error" id="login-error" role="alert"></div>
+              <button class="primary-button auth-submit" type="submit"><span>Intră în cont</span><span class="button-arrow">↗</span></button>
+            </form>
+            <form class="auth-form" id="register-form" data-auth-form="register">
+              <label class="field"><span>Nume</span><input id="register-name" type="text" autocomplete="name" required></label>
+              <label class="field"><span>Email</span><input id="register-email" type="email" autocomplete="email" required></label>
+              <label class="field"><span>Parolă</span><input id="register-password" type="password" minlength="6" autocomplete="new-password" required></label>
+              <div class="form-error" id="register-error" role="alert"></div>
+              <button class="primary-button auth-submit" type="submit"><span>Creează contul</span><span class="button-arrow">↗</span></button>
+            </form>
+            <div class="account-status" id="account-status" hidden></div>
+          </div>
+        </section>
+      </div>
     </main>
     <footer><span>CALORIE CALCULATOR</span><span>Creat pentru alegeri mai conștiente</span></footer>
   </div>
