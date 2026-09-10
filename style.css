@@ -76,6 +76,7 @@ footer { display: flex; justify-content: space-between; padding: 38px 7.5% 30px;
 .dashboard-topbar { align-items: center !important; }
 
 @media (max-width: 600px) { .date-picker, .date-picker input { width: 100%; } }
+.fiber-icon { background: #e8f1dc; color: #6f9a58; }.fiber-goal-card { padding: 17px 15px; }.fiber-goal-card strong { display: block; margin: 17px 0 2px; color: var(--ink); font-family: Outfit, sans-serif; font-size: 25px; }.fiber-goal-card small { color: #99a39e; font-size: 10px; }.fiber-goal-card small b { color: #63706a; }.fiber-goal-card .progress-track { margin-top: 15px; }.fiber-goal-card .progress-track span { background: #82ae79; }
 
 /* Recipe editor refinements, limited to the existing modal. */
 .recipe-modal-card { width: min(560px, 100%) !important; max-height: min(760px, calc(100vh - 28px)); overflow-y: auto; padding: 30px 32px 28px !important; }

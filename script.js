@@ -145,7 +145,7 @@ foodForm.addEventListener('reset', () => {
 // Jurnalul este păstrat local, astfel încât fiecare zi să aibă propriile mese.
 const mealLabels = { breakfast: 'Mic dejun', lunch: 'Prânz', dinner: 'Cină', snacks: 'Gustări' };
 const mealIcons = { breakfast: '☀', lunch: '◒', dinner: '☾', snacks: '✦' };
-const defaultGoals = { calories: 2000, protein: 130, carbs: 220, fats: 65 };
+const defaultGoals = { calories: 2000, protein: 130, carbs: 220, fats: 65, fiber: 30 };
 const today = new Date().toISOString().slice(0, 10);
 const dateInput = document.querySelector('#selected-date');
 const previousDayButton = document.querySelector('#previous-day');
@@ -215,7 +215,7 @@ function renderMeals() {
 function updateDashboardTotals(day) {
   const totals = nutrientTotals(Object.values(day).flat());
   const goals = readStorage(storageKeys.goals, defaultGoals);
-  const mappings = [['calories', 'dashboard-calories', 'dashboard-calorie-goal', 'calories-progress', ''], ['protein', 'dashboard-protein', 'dashboard-protein-goal', 'protein-progress', ' g'], ['carbs', 'dashboard-carbs', 'dashboard-carbs-goal', 'carbs-progress', ' g'], ['fats', 'dashboard-fats', 'dashboard-fats-goal', 'fats-progress', ' g']];
+  const mappings = [['calories', 'dashboard-calories', 'dashboard-calorie-goal', 'calories-progress', ''], ['protein', 'dashboard-protein', 'dashboard-protein-goal', 'protein-progress', ' g'], ['carbs', 'dashboard-carbs', 'dashboard-carbs-goal', 'carbs-progress', ' g'], ['fats', 'dashboard-fats', 'dashboard-fats-goal', 'fats-progress', ' g'], ['fiber', 'dashboard-fiber', 'dashboard-fiber-goal', 'fiber-progress', ' g']];
   mappings.forEach(([key, valueId, goalId, progressId, suffix]) => {
     document.querySelector(`#${valueId}`).textContent = displayValue(totals[key], suffix);
     document.querySelector(`#${goalId}`).textContent = displayValue(goals[key], suffix);
@@ -228,6 +228,7 @@ function isFavorite(foodKey) { return readStorage(storageKeys.favorites, []).inc
 function renderFavorites() {
   const favorites = readStorage(storageKeys.favorites, []);
   const target = document.querySelector('#favorites-list');
+  if (!target) return;
   target.innerHTML = favorites.length ? favorites.map((key) => `<div class="favorite-row"><span>${foodDatabase[key].name}</span><button type="button" data-favorite-add="${key}">+ Adaugă</button></div>`).join('') : '<span class="favorite-empty">Apasă ♡ lângă un aliment pentru a-l salva.</span>';
 }
 
@@ -322,7 +323,8 @@ document.querySelector('#meals-list').addEventListener('click', (event) => {
 
 document.querySelectorAll('[data-open-food]').forEach((button) => button.addEventListener('click', () => openMealModal()));
 document.querySelectorAll('[data-close-food]').forEach((button) => button.addEventListener('click', closeMealModal));
-document.querySelector('#favorites-list').addEventListener('click', (event) => { const add = event.target.closest('[data-favorite-add]'); if (add) openMealModal(); if (add) document.querySelector('#meal-food').value = add.dataset.favoriteAdd; });
+const favoritesList = document.querySelector('#favorites-list');
+if (favoritesList) favoritesList.addEventListener('click', (event) => { const add = event.target.closest('[data-favorite-add]'); if (add) openMealModal(); if (add) document.querySelector('#meal-food').value = add.dataset.favoriteAdd; });
 dateInput.value = today;
 dateInput.max = today;
 document.querySelector('#selected-date-label').textContent = formatDateDisplay(today);
@@ -348,7 +350,7 @@ calendarButton.addEventListener('click', () => {
   else dateInput.click();
 });
 selectJournalDate(today);
-document.querySelector('#goals-form').addEventListener('submit', (event) => { event.preventDefault(); const goals = { calories: Number(document.querySelector('#goal-calories').value), protein: Number(document.querySelector('#goal-protein').value), carbs: Number(document.querySelector('#goal-carbs').value), fats: Number(document.querySelector('#goal-fats').value) }; saveStorage(storageKeys.goals, goals); updateDashboardTotals(getDayJournal()[currentDate]); });
+document.querySelector('#goals-form').addEventListener('submit', (event) => { event.preventDefault(); const goals = { calories: Number(document.querySelector('#goal-calories').value), protein: Number(document.querySelector('#goal-protein').value), carbs: Number(document.querySelector('#goal-carbs').value), fats: Number(document.querySelector('#goal-fats').value), fiber: Number(document.querySelector('#goal-fiber').value) }; saveStorage(storageKeys.goals, goals); updateDashboardTotals(getDayJournal()[currentDate]); });
 
 const savedGoals = readStorage(storageKeys.goals, defaultGoals);
 Object.entries(savedGoals).forEach(([key, value]) => { document.querySelector(`#goal-${key}`).value = value; });
@@ -405,8 +407,16 @@ function addIngredientRow(ingredient = null) {
   const rowId = `ingredient-${ingredientCounter++}`;
   const row = document.createElement('div');
   row.className = 'ingredient-row'; row.dataset.rowId = rowId;
-  row.innerHTML = `<div class="ingredient-food-wrap"><input class="ingredient-food" type="text" value="${key ? foodDatabase[key].name : ''}" placeholder="Scrie alimentul..." aria-label="Ingredient"><div class="food-recommendations" role="listbox"></div></div><input class="ingredient-amount" type="number" min="0.1" value="${ingredient?.amount || 100}" aria-label="Cantitate"><select class="ingredient-unit" aria-label="Unitate">${ingredientUnitOptions(key, ingredient?.unit || 'gram')}</select><button type="button" class="icon-button remove-ingredient" aria-label="Șterge ingredientul">×</button><div class="ingredient-nutrition-preview"></div>`;
+  row.innerHTML = `<div class="ingredient-food-wrap"><input class="ingredient-food" type="text" value="${key ? foodDatabase[key].name : ''}" placeholder="Scrie alimentul..." aria-label="Ingredient"><div class="food-recommendations" role="listbox"></div></div><input class="ingredient-amount" type="number" min="1" step="1" value="${ingredient?.amount || 100}" aria-label="Cantitate"><select class="ingredient-unit" aria-label="Unitate">${ingredientUnitOptions(key, ingredient?.unit || 'gram')}</select><button type="button" class="icon-button remove-ingredient" aria-label="Șterge ingredientul">×</button><div class="ingredient-nutrition-preview"></div>`;
   document.querySelector('#ingredient-list').appendChild(row);
+  const amountInput = row.querySelector('.ingredient-amount');
+  amountInput.min = '1';
+  amountInput.step = '1';
+  amountInput.inputMode = 'numeric';
+  amountInput.addEventListener('keydown', (event) => {
+    if (['.', ',', 'e', 'E', '+', '-'].includes(event.key)) event.preventDefault();
+  });
+  amountInput.value = String(Math.max(1, Math.round(Number(amountInput.value) || 1)));
   row.querySelector('.ingredient-food').dataset.foodKey = key;
   const foodInput = row.querySelector('.ingredient-food');
   foodInput.addEventListener('input', () => {
@@ -417,7 +427,7 @@ function addIngredientRow(ingredient = null) {
     renderIngredientNutrition(row);
     updateRecipePreview();
   });
-  row.querySelector('.ingredient-amount').addEventListener('input', () => { renderIngredientNutrition(row); updateRecipePreview(); });
+  row.querySelector('.ingredient-amount').addEventListener('input', (event) => { const amount = Number(event.target.value); if (Number.isFinite(amount) && amount > 0) event.target.value = Math.round(amount); renderIngredientNutrition(row); updateRecipePreview(); });
   row.querySelector('.ingredient-unit').addEventListener('change', () => { renderIngredientNutrition(row); updateRecipePreview(); });
   row.querySelector('.remove-ingredient').addEventListener('click', () => { row.remove(); updateRecipePreview(); });
   renderIngredientNutrition(row);
