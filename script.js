@@ -14,8 +14,10 @@ const userScopedStorageKeys = new Set([
 function getStorageKey(key) {
   if (!userScopedStorageKeys.has(key)) return key;
   try {
-    const session = JSON.parse(localStorage.getItem('calorie-calculator-session') || 'null');
-    return session?.email ? `${key}::${encodeURIComponent(session.email)}` : key;
+    const supabaseEmail = window.__activeSupabaseSession?.user?.email;
+    const localSession = JSON.parse(localStorage.getItem('calorie-calculator-session') || 'null');
+    const email = supabaseEmail || localSession?.email;
+    return email ? `${key}::${encodeURIComponent(email)}` : key;
   } catch {
     return key;
   }
@@ -226,7 +228,10 @@ function readStorage(key, fallback) {
   try { return JSON.parse(localStorage.getItem(getStorageKey(key))) || fallback; } catch { return fallback; }
 }
 
-function saveStorage(key, value) { localStorage.setItem(getStorageKey(key), JSON.stringify(value)); }
+function saveStorage(key, value) {
+  localStorage.setItem(getStorageKey(key), JSON.stringify(value));
+  if (typeof queueSupabaseSync === 'function') queueSupabaseSync(key);
+}
 
 function getDayJournal() {
   const journal = readStorage(storageKeys.journal, {});
@@ -264,7 +269,7 @@ function renderMeals() {
     const entryMarkup = entries.length ? entries.map((entry) => `
       <div class="food-entry">
         <button class="favorite-toggle ${!entry.isRecipe && isFavorite(entry.food) ? 'is-favorite' : ''}" data-favorite="${entry.food || ''}" aria-label="Favoritează alimentul">${!entry.isRecipe && isFavorite(entry.food) ? '♥' : '♡'}</button>
-        <span class="food-entry-name" ${entry.isRecipe ? `data-edit="${entry.id}" data-meal="${key}"` : ''}>${recipeEntryName(entry)}<small>${entry.isRecipe ? `${displayValue(entry.amount)} porții` : displayQuantity(entry)} · ${displayValue(entry.protein, 'g')} proteine</small></span>
+        <span class="food-entry-name" ${entry.isRecipe ? `data-edit="${entry.id}" data-meal="${key}"` : ''}>${recipeEntryName(entry)}<small>${entry.isRecipe ? `${formatDecimal(entry.portionPercent || entry.amount * 100)}% consumat` : displayQuantity(entry)} · ${displayValue(entry.protein, 'g')} proteine</small></span>
         <span class="food-entry-kcal">${formatNumber(entry.calories)} kcal</span>
         <span class="entry-actions"><button class="icon-button" type="button" data-edit="${entry.id}" data-meal="${key}" aria-label="Editează alimentul">✎</button><button class="icon-button" type="button" data-delete="${entry.id}" data-meal="${key}" aria-label="Șterge alimentul">×</button></span>
       </div>`).join('') : '<div class="meal-empty">Niciun aliment adăugat încă.</div>';
@@ -467,6 +472,7 @@ document.querySelector('#meals-list').addEventListener('click', (event) => {
     if (entry?.isRecipe) {
       const recipe = readStorage('calorie-calculator-recipes', []).find((item) => item.id === entry.recipeId);
       if (recipe) openRecipeModal(recipe, edit.dataset.meal, entry);
+      else if (entry.ingredients?.length) openRecipeModal({ name: '', ingredients: entry.ingredients, servings: 1, totalGrams: entry.totalGrams, consumedGrams: entry.consumedGrams }, edit.dataset.meal, entry);
     } else if (entry) openMealModal(edit.dataset.meal, entry);
   }
   if (remove) {
@@ -548,6 +554,7 @@ if (recipeServingsInput) {
   gramsToggle.querySelector('input').addEventListener('change', toggleGramsFields);
   document.querySelector('.per-serving > span')?.replaceChildren('Cantitatea consumată');
 }
+document.querySelector('#recipe-name').required = false;
 
 function recipeTotals(ingredients) { return nutrientTotals(ingredients.map((ingredient) => ingredient.nutrients)); }
 function recipeIngredientGrams(ingredients) { return ingredients.reduce((total, ingredient) => total + ingredient.nutrients.grams, 0); }
@@ -824,11 +831,11 @@ document.querySelector('#recipe-form').addEventListener('submit', (event) => {
   const totalGrams = Number(document.querySelector('#recipe-total-grams').value);
   const consumedGrams = Number(document.querySelector('#recipe-consumed-grams').value);
   const unresolved = [...document.querySelectorAll('.ingredient-row')].some((row) => row.querySelector('.ingredient-food').value.trim() && !row.querySelector('.ingredient-food').dataset.foodKey);
-  if (!name || !ingredients.length || unresolved || (gramsEnabled && (!totalGrams || !consumedGrams || totalGrams < 1 || consumedGrams < 1 || consumedGrams > totalGrams))) { document.querySelector('#recipe-error').textContent = unresolved ? 'Alimentele noi trebuie salvate cu valorile lor nutriționale înainte de a continua.' : 'Introdu cantitatea totală și cantitatea consumată. Cantitatea consumată nu poate depăși totalul.'; return; }
+  if ((!name && !recipeMealContext) || !ingredients.length || unresolved || (gramsEnabled && (!totalGrams || !consumedGrams || totalGrams < 1 || consumedGrams < 1 || consumedGrams > totalGrams))) { document.querySelector('#recipe-error').textContent = unresolved ? 'Alimentele noi trebuie salvate cu valorile lor nutriționale înainte de a continua.' : !name && !recipeMealContext ? 'Introdu un nume pentru a salva rețeta.' : 'Introdu cantitatea totală și cantitatea consumată. Cantitatea consumată nu poate depăși totalul.'; return; }
   const recipes = readStorage(recipeStorageKey, []);
   const previous = recipes.find((recipe) => recipe.id === editingRecipeId);
-  const recipe = { id: editingRecipeId || `${Date.now()}-${Math.random()}`, name, ingredients, servings: previous?.servings || 1, totalGrams: gramsEnabled ? totalGrams : null, consumedGrams: gramsEnabled ? consumedGrams : null, favorite: previous?.favorite || false };
-  saveStorage(recipeStorageKey, editingRecipeId ? recipes.map((item) => item.id === editingRecipeId ? recipe : item) : [...recipes, recipe]);
+  const recipe = name ? { id: editingRecipeId || `${Date.now()}-${Math.random()}`, name, ingredients, servings: previous?.servings || 1, totalGrams: gramsEnabled ? totalGrams : null, consumedGrams: gramsEnabled ? consumedGrams : null, favorite: previous?.favorite || false } : null;
+  if (recipe) saveStorage(recipeStorageKey, editingRecipeId ? recipes.map((item) => item.id === editingRecipeId ? recipe : item) : [...recipes, recipe]);
   if (recipeMealContext) {
     const total = recipeTotals(ingredients);
     const journal = getDayJournal();
@@ -838,7 +845,9 @@ document.querySelector('#recipe-form').addEventListener('submit', (event) => {
     });
     const portions = gramsEnabled ? consumedGrams / totalGrams : 1;
     const portionPercent = portions * 100;
-    journal[currentDate][recipeMealContext].push({ id: editingMealEntryContext?.id || `${Date.now()}-${Math.random()}`, recipeId: recipe.id, isRecipe: true, recipeName: name, amount: portions, portionPercent, totalGrams: gramsEnabled ? totalGrams : null, consumedGrams: gramsEnabled ? consumedGrams : null, unit: 'portion', calories: total.calories * portions / recipe.servings, protein: total.protein * portions / recipe.servings, carbs: total.carbs * portions / recipe.servings, fats: total.fats * portions / recipe.servings, fiber: total.fiber * portions / recipe.servings });
+    const fallbackName = ingredients.map((ingredient) => foodDatabase[ingredient.food]?.name || ingredient.food).join(', ') || 'Masă fără denumire';
+    const recipeServings = recipe?.servings || previous?.servings || 1;
+    journal[currentDate][recipeMealContext].push({ id: editingMealEntryContext?.id || `${Date.now()}-${Math.random()}`, recipeId: recipe?.id || null, isRecipe: true, recipeName: name || fallbackName, ingredients, amount: portions, portionPercent, totalGrams: gramsEnabled ? totalGrams : null, consumedGrams: gramsEnabled ? consumedGrams : null, unit: 'portion', calories: total.calories * portions / recipeServings, protein: total.protein * portions / recipeServings, carbs: total.carbs * portions / recipeServings, fats: total.fats * portions / recipeServings, fiber: total.fiber * portions / recipeServings });
     saveStorage(storageKeys.journal, journal);
   }
   closeRecipeModal(); renderRecipes(); renderMeals();
@@ -928,6 +937,57 @@ const authTabs = document.querySelectorAll('[data-auth-tab]');
 const authForms = document.querySelectorAll('[data-auth-form]');
 const accountStatus = document.querySelector('#account-status');
 let activeSupabaseSession = null;
+const synchronizedStorageKeys = ['calorie-calculator-journal', 'calorie-calculator-favorites', 'calorie-calculator-goals', 'calorie-calculator-recipes', 'calorie-calculator-custom-foods'];
+let supabaseSyncTimer = null;
+
+function localAppDataSnapshot() {
+  return Object.fromEntries(synchronizedStorageKeys.map((key) => {
+    try {
+      const scopedValue = localStorage.getItem(getStorageKey(key));
+      const legacyValue = localStorage.getItem(key);
+      return [key, JSON.parse(scopedValue ?? legacyValue ?? 'null')];
+    } catch { return [key, null]; }
+  }));
+}
+
+async function syncAppDataToSupabase() {
+  const session = window.__activeSupabaseSession;
+  const client = window.__supabaseClient;
+  if (!client || !session?.user) return;
+  const snapshot = localAppDataSnapshot();
+  synchronizedStorageKeys.forEach((key) => {
+    if (snapshot[key] !== null && snapshot[key] !== undefined) localStorage.setItem(getStorageKey(key), JSON.stringify(snapshot[key]));
+  });
+  const { data: profile } = await client.from('profiles').select('settings').eq('id', session.user.id).maybeSingle();
+  await client.from('profiles').update({ settings: { ...(profile?.settings || {}), calorieCalculatorData: snapshot } }).eq('id', session.user.id);
+}
+
+function queueSupabaseSync(key) {
+  if (!synchronizedStorageKeys.includes(key) || !window.__activeSupabaseSession || !window.__supabaseClient) return;
+  window.clearTimeout(supabaseSyncTimer);
+  supabaseSyncTimer = window.setTimeout(() => { syncAppDataToSupabase(); }, 250);
+}
+
+async function restoreAppDataFromSupabase(session) {
+  if (!supabaseClient || !session?.user) return;
+  const { data: profile } = await supabaseClient.from('profiles').select('settings').eq('id', session.user.id).maybeSingle();
+  const cloudData = profile?.settings?.calorieCalculatorData;
+  if (cloudData) {
+    synchronizedStorageKeys.forEach((key) => {
+      if (cloudData[key] !== null && cloudData[key] !== undefined) localStorage.setItem(getStorageKey(key), JSON.stringify(cloudData[key]));
+    });
+    Object.assign(foodDatabase, cloudData['calorie-calculator-custom-foods'] || {});
+    prepareMealForm();
+    renderFavorites();
+    renderMeals();
+    renderRecipes();
+    renderFoodLibrary();
+    const savedGoals = readStorage(storageKeys.goals, defaultGoals);
+    Object.entries(savedGoals).forEach(([key, value]) => { document.querySelector(`#goal-${key}`).value = value; });
+  } else {
+    await syncAppDataToSupabase();
+  }
+}
 
 async function saveCalculatorProfile(profile) {
   const journal = readStorage(storageKeys.journal, {});
@@ -979,6 +1039,7 @@ function renderAccountState(session) {
   const name = session.user.user_metadata?.display_name || session.user.user_metadata?.name || session.user.email.split('@')[0];
   accountStatus.innerHTML = `<strong>Salut, ${name}!</strong><br>Ești autentificat cu ${session.user.email}.<br><button class="reset-button" type="button" id="logout-button">Ieși din cont</button>`;
   document.querySelector('#logout-button').addEventListener('click', async () => { await supabaseClient.auth.signOut(); });
+  restoreAppDataFromSupabase(session);
   restoreCalculatorProfileFromSupabase(session);
   if (window.location.hash === '#account-page') window.location.hash = 'dashboard-page';
 }
