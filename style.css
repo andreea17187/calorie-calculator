@@ -241,3 +241,94 @@ footer { display: flex; justify-content: space-between; padding: 38px 7.5% 30px;
   .goals-form { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .goals-form .secondary-button { grid-column: 1 / -1; width: 100%; }
 }
+
+.mobile-menu-toggle { display: none; }
+
+@media (max-width: 600px), (hover: none) and (pointer: coarse) {
+  .page-shell { width: 100%; max-width: 100%; padding: 0 12px; overflow: hidden; }
+  .site-header { min-height: 68px; padding: 10px 0; gap: 10px; }
+  .brand { min-width: 0; font-size: 15px; }
+  .brand-mark { flex: 0 0 auto; width: 27px; height: 27px; }
+  .header-note { display: none; }
+  .mobile-menu-toggle { width: 44px; height: 44px; display: grid; place-items: center; margin-left: auto; border: 1px solid var(--line); border-radius: 9px; background: white; color: var(--green); font-size: 21px; }
+  .mode-switcher, .mode-switcher.is-open { position: absolute; top: calc(100% + 8px); right: 0; left: 0; z-index: 30; display: none; flex-direction: column; gap: 3px; width: auto; max-height: calc(100vh - 90px); margin: 0; padding: 8px; overflow-y: auto; border: 1px solid var(--line); border-radius: 12px; background: white; box-shadow: 0 18px 40px rgba(32,70,57,.14); }
+  .mode-switcher.is-open { display: flex; }
+  .mode-button { width: 100%; min-height: 44px; display: flex; align-items: center; padding: 10px 12px; border-radius: 7px; font-size: 12px; }
+  .dashboard-section, .weekly-report-section, .foods-library-section, .account-section { padding-right: 3%; padding-left: 3%; }
+  .page-heading h1, .weekly-report-topbar h1, .foods-library-heading h1, .account-heading h1 { font-size: clamp(34px, 10vw, 48px); line-height: 1; }
+  .primary-button, .secondary-button, .text-button, .reset-button, .date-nav-button { min-height: 44px; }
+  input, select { max-width: 100%; }
+
+  .hero { min-height: 250px; padding: 38px 3% 30px; }
+  .hero-copy { max-width: 100%; }
+  .hero-description { max-width: 100%; }
+  .hero-stamp { width: 78px; height: 78px; right: 4%; top: 30px; }
+  .content-grid { grid-template-columns: 1fr; gap: 16px; }
+  .calculator-panel, .results-panel { min-width: 0; padding: 24px 16px; }
+  .results-panel { min-height: auto; }
+  .results-empty { min-height: 300px; }
+  .input-row, .goal-options, .metric-list, .macro-grid { grid-template-columns: 1fr; }
+  .input-row { gap: 12px; }
+  .form-actions, .modal-actions { align-items: stretch; flex-direction: column; gap: 10px; }
+  .form-actions .primary-button, .modal-actions .primary-button { width: 100%; justify-content: space-between; }
+
+  .recipes-section { margin: 42px 3% 18px; padding-top: 26px; }
+  .recipes-heading { align-items: stretch; flex-direction: column; gap: 18px; }
+  .recipes-heading h2 { font-size: 32px; }
+  .recipes-heading .primary-button { width: 100%; justify-content: space-between; }
+  .recipe-search-row { align-items: stretch; flex-direction: column; gap: 8px; margin-top: 22px; }
+  .recipe-search-row .search-field { width: 100%; }
+  .recipes-list { grid-template-columns: 1fr; }
+  .recipe-card-main { gap: 12px; }
+  .recipe-card-actions { align-items: stretch; flex-direction: column; }
+  .recipe-card-actions select, .recipe-card-actions input, .recipe-card-actions button { width: 100%; min-height: 44px; }
+
+  .foods-library-section { padding-top: 36px; }
+  .foods-library-heading { margin-bottom: 20px; }
+  .foods-search-row { align-items: stretch; flex-direction: column; }
+  .foods-search, .foods-add-button { width: 100%; }
+  .foods-add-button { justify-content: space-between; }
+  .foods-library-list { grid-template-columns: 1fr; }
+  .food-library-card { min-width: 0; padding: 15px; }
+  .food-library-form { grid-template-columns: 1fr; }
+  .food-library-form label:last-of-type { grid-column: auto; }
+  .food-library-actions .secondary-button { width: 100%; }
+
+  .weekly-report-section { padding-top: 36px; }
+  .weekly-report-topbar { align-items: stretch; flex-direction: column; gap: 18px; }
+  .report-back-button { align-self: stretch; }
+  .report-period-bar { flex-wrap: wrap; gap: 8px; padding: 10px; }
+  .report-period-bar strong { flex: 1 1 150px; min-width: 0; font-size: 13px; }
+  .report-period-bar .secondary-button { width: 100%; margin: 2px 0 0; }
+  .report-grid { grid-template-columns: 1fr; }
+  .report-card-wide { grid-column: auto; }
+  .macro-report-grid, .meal-distribution { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .report-chart-row { grid-template-columns: 54px minmax(0, 1fr) 78px; gap: 6px; }
+  .report-chart-values { font-size: 9px; }
+  .report-legend { flex-wrap: wrap; gap: 8px 14px; }
+
+  .account-section { grid-template-columns: 1fr; gap: 26px; min-height: auto; padding-top: 44px; padding-bottom: 48px; }
+  .auth-card { min-width: 0; padding: 20px 16px; }
+  .auth-tabs { margin-bottom: 20px; }
+  .auth-form .primary-button, .auth-form .secondary-button { width: 100%; justify-content: space-between; }
+
+  .food-modal, .recipe-modal { padding: 10px; }
+  .modal-card, .recipe-modal-card { width: 100% !important; max-width: 100%; max-height: calc(100vh - 20px); padding: 24px 16px 20px !important; overflow-y: auto; }
+  .quantity-row { grid-template-columns: minmax(0, 1fr) 108px; }
+  .custom-food-grid { grid-template-columns: 1fr; }
+  .recipe-ingredients-heading > span:last-child { justify-content: flex-start; }
+  .ingredient-row { grid-template-columns: minmax(0, 1fr) 54px 70px 28px; gap: 5px; }
+  .ingredient-row .ingredient-amount, .ingredient-row .ingredient-unit { width: auto; }
+  .recipe-form .modal-actions { flex-direction: column; }
+}
+
+@media (max-width: 360px) {
+  .page-shell { padding: 0 9px; }
+  .brand { font-size: 14px; }
+  .stats-grid { gap: 7px; }
+  .stat-card { padding: 12px 9px; }
+  .stat-card-head { font-size: 9px; }
+  .stat-card-head span:first-child { max-width: 72px; }
+  .date-navigation { grid-template-columns: 36px minmax(0, 1fr) 40px 36px; gap: 4px; }
+  .ingredient-row { grid-template-columns: minmax(0, 1fr) 50px 66px 26px; }
+}

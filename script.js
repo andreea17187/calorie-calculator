@@ -808,7 +808,21 @@ renderRecipes();
 renderFoodLibrary();
 
 const pageLinks = document.querySelectorAll('[data-page]');
+const mobileMenuToggle = document.querySelector('.mobile-menu-toggle');
+const mainNavigation = document.querySelector('#main-navigation');
 const pageAliases = { 'calculator-section': 'calculator-page', 'recipes-section': 'recipes-page', 'dashboard-section': 'dashboard-page' };
+
+function closeMobileMenu() {
+  mainNavigation?.classList.remove('is-open');
+  mobileMenuToggle?.setAttribute('aria-expanded', 'false');
+  mobileMenuToggle?.setAttribute('aria-label', 'Deschide meniul');
+}
+
+mobileMenuToggle?.addEventListener('click', () => {
+  const isOpen = mainNavigation.classList.toggle('is-open');
+  mobileMenuToggle.setAttribute('aria-expanded', String(isOpen));
+  mobileMenuToggle.setAttribute('aria-label', isOpen ? 'Închide meniul' : 'Deschide meniul');
+});
 
 function showPage(pageId) {
   const resolvedPageId = pageAliases[pageId] || pageId;
@@ -820,6 +834,7 @@ function showPage(pageId) {
 
 pageLinks.forEach((link) => link.addEventListener('click', (event) => {
   event.preventDefault();
+  closeMobileMenu();
   const pageId = link.dataset.page;
   showPage(pageId);
   if (window.location.hash !== `#${pageId}`) window.location.hash = pageId;
