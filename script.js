@@ -85,9 +85,7 @@ form.addEventListener('submit', (event) => {
   const error = validate(data);
   errorBox.textContent = error;
   if (error) return;
-  const journal = readStorage(storageKeys.journal, {});
-  journal.calculatorProfile = data;
-  saveStorage(storageKeys.journal, journal);
+  saveCalculatorProfile(data);
   displayResults(calculateResults(data));
 });
 
@@ -97,9 +95,7 @@ form.addEventListener('reset', () => {
   resultsContent.hidden = true;
 });
 
-function restoreCalculatorProfile() {
-  const journal = readStorage(storageKeys.journal, {});
-  const savedProfile = journal.calculatorProfile || readStorage('calorie-calculator-profile', null);
+function applyCalculatorProfile(savedProfile) {
   if (!savedProfile) return;
   const sexInput = document.querySelector(`input[name="sex"][value="${savedProfile.sex}"]`);
   const goalInput = document.querySelector(`input[name="goal"][value="${savedProfile.goal}"]`);
@@ -113,8 +109,12 @@ function restoreCalculatorProfile() {
   if (!error) displayResults(calculateResults(savedProfile), false);
 }
 
-const foodForm = document.querySelector('#food-form');
-const foodError = document.querySelector('#food-error');
+function restoreCalculatorProfile() {
+  const journal = readStorage(storageKeys.journal, {});
+  const savedProfile = journal.calculatorProfile || readStorage('calorie-calculator-profile', null);
+  applyCalculatorProfile(savedProfile);
+}
+
 const foodDatabase = {
   oats: { name: 'Fulgi de ovăz', calories: 389, protein: 16.9, carbs: 66.3, fats: 6.9, fiber: 10.6, units: { tablespoon: 8, teaspoon: 3 } },
   chicken: { name: 'Piept de pui', calories: 165, protein: 31, carbs: 0, fats: 3.6, fiber: 0, units: {} },
@@ -186,32 +186,6 @@ try {
 }
 
 const formatDecimal = (value) => value.toLocaleString('ro-RO', { maximumFractionDigits: 1 });
-
-foodForm.addEventListener('submit', (event) => {
-  event.preventDefault();
-  const food = document.querySelector('#food').value;
-  const amount = Number(document.querySelector('#food-amount').value);
-  if (!food || !amount || amount < 1 || amount > 5000) {
-    foodError.textContent = 'Alege un aliment și introdu o cantitate între 1 și 5.000 de grame.';
-    return;
-  }
-  foodError.textContent = '';
-  const nutrients = foodDatabase[food];
-  const ratio = amount / 100;
-  const fields = ['calories', 'protein', 'carbs', 'fats', 'fiber'];
-  fields.forEach((field) => {
-    document.querySelector(`#food-${field}`).textContent = formatDecimal(nutrients[field] * ratio);
-  });
-  document.querySelector('#food-serving').textContent = `per ${formatNumber(amount)} g`;
-});
-
-foodForm.addEventListener('reset', () => {
-  foodError.textContent = '';
-  document.querySelector('#food-serving').textContent = 'per 100 g';
-  ['calories', 'protein', 'carbs', 'fats', 'fiber'].forEach((field) => {
-    document.querySelector(`#food-${field}`).textContent = '—';
-  });
-});
 
 // Jurnalul este păstrat local, astfel încât fiecare zi să aibă propriile mese.
 const mealLabels = { breakfast: 'Mic dejun', lunch: 'Prânz', dinner: 'Cină', snacks: 'Gustări' };
@@ -293,6 +267,100 @@ function updateDashboardTotals(day) {
     document.querySelector(`#${progressId}`).style.width = `${Math.min(100, (totals[key] / goals[key]) * 100)}%`;
   });
 }
+
+let reportWeekEnd = today;
+
+function shiftDate(dateValue, days) {
+  const date = new Date(`${dateValue}T12:00:00`);
+  date.setDate(date.getDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function reportDays() {
+  const end = reportWeekEnd;
+  return Array.from({ length: 7 }, (_, index) => shiftDate(end, index - 6));
+}
+
+function formatReportDate(dateValue, options = { day: 'numeric', month: 'long' }) {
+  return new Intl.DateTimeFormat('ro-RO', options).format(new Date(`${dateValue}T12:00:00`));
+}
+
+function formatReportPeriod() {
+  const days = reportDays();
+  return `${formatReportDate(days[0])} – ${formatReportDate(days[6])}`;
+}
+
+function localWeeklyReportData(days) {
+  const journal = readStorage(storageKeys.journal, {});
+  const daily = days.map((dateValue) => {
+    const day = journal[dateValue] || {};
+    const entries = Object.keys(mealLabels).flatMap((mealKey) => day[mealKey] || []);
+    return { date: dateValue, entries, totals: nutrientTotals(entries) };
+  });
+  return { daily, goals: readStorage(storageKeys.goals, defaultGoals) };
+}
+
+async function weeklyReportData(days) {
+  const session = window.__activeSupabaseSession;
+  const client = window.__supabaseClient;
+  if (!client || !session?.user) return localWeeklyReportData(days);
+  const [{ data: meals }, { data: goals }] = await Promise.all([
+    client.from('meals').select('*').eq('user_id', session.user.id).gte('consumed_on', days[0]).lte('consumed_on', days[6]),
+    client.from('goals').select('*').eq('user_id', session.user.id).maybeSingle()
+  ]);
+  const daily = days.map((dateValue) => {
+    const entries = (meals || []).filter((meal) => meal.consumed_on === dateValue).map((meal) => ({ ...meal, mealType: meal.meal_type, isRecipe: Boolean(meal.recipe_id), recipeId: meal.recipe_id }));
+    return { date: dateValue, entries, totals: nutrientTotals(entries) };
+  });
+  return { daily, goals: goals || defaultGoals };
+}
+
+function reportPercent(value, goal) { return goal > 0 ? Math.round((value / goal) * 100) : 0; }
+
+function renderWeeklyReport(data) {
+  const target = document.querySelector('#weekly-report-content');
+  const label = document.querySelector('#report-period-label');
+  if (!target || !label) return;
+  label.textContent = formatReportPeriod();
+  const { daily, goals } = data;
+  const availableDays = daily.filter((day) => day.entries.length > 0);
+  const total = nutrientTotals(daily.flatMap((day) => day.entries));
+  const average = availableDays.length ? Object.fromEntries(Object.entries(total).map(([key, value]) => [key, value / availableDays.length])) : total;
+  const calorieDays = daily.filter((day) => day.entries.length > 0);
+  const belowGoal = calorieDays.filter((day) => day.totals.calories < goals.calories).length;
+  const aboveGoal = calorieDays.filter((day) => day.totals.calories > goals.calories).length;
+  const maxCalories = Math.max(goals.calories, ...daily.map((day) => day.totals.calories), 1);
+  const mealTotals = Object.fromEntries(Object.keys(mealLabels).map((key) => [key, 0]));
+  daily.forEach((day) => day.entries.forEach((entry) => { mealTotals[entry.mealType || entry.meal_type] = (mealTotals[entry.mealType || entry.meal_type] || 0) + entry.calories; }));
+  const recipeCount = new Set(daily.flatMap((day) => day.entries.filter((entry) => entry.isRecipe || entry.recipe_id).map((entry) => entry.recipeId || entry.recipe_id))).size;
+  const mostCalories = calorieDays.reduce((best, day) => !best || day.totals.calories > best.totals.calories ? day : best, null);
+  const leastCalories = calorieDays.reduce((best, day) => !best || day.totals.calories < best.totals.calories ? day : best, null);
+  const mostProtein = calorieDays.reduce((best, day) => !best || day.totals.protein > best.totals.protein ? day : best, null);
+  const dayLabel = (day) => day ? formatReportDate(day.date, { weekday: 'long' }) : '—';
+  const percentage = reportPercent(average.calories, goals.calories);
+  const availabilityNote = availableDays.length < 7 ? 'Nu există suficiente date pentru fiecare zi din această perioadă; sunt afișate doar zilele cu mese înregistrate.' : '';
+  target.innerHTML = `
+    ${availabilityNote ? `<div class="report-empty">${availabilityNote}</div>` : ''}
+    <div class="report-grid">
+      <article class="report-card"><h2>Rezumat calorii</h2><div class="report-stat-list"><div class="report-stat-row"><span>Media / zi</span><strong>${formatNumber(average.calories)} kcal</strong></div><div class="report-stat-row"><span>Total săptămână</span><strong>${formatNumber(total.calories)} kcal</strong></div><div class="report-stat-row"><span>Obiectiv zilnic</span><strong>${formatNumber(goals.calories)} kcal</strong></div><div class="report-stat-row"><span>Sub obiectiv</span><strong>${belowGoal} zile</strong></div><div class="report-stat-row"><span>Peste obiectiv</span><strong>${aboveGoal} zile</strong></div></div></article>
+      <article class="report-card report-card-wide"><h2>Macronutrienți, medie zilnică</h2><div class="macro-report-grid">${[['protein', 'Proteine', 'g'], ['carbs', 'Carbohidrați', 'g'], ['fats', 'Grăsimi', 'g'], ['fiber', 'Fibre', 'g']].map(([key, name, unit]) => `<div class="macro-report-item"><h3>${name}</h3><strong>${formatDecimal(average[key])} ${unit}</strong><small>${reportPercent(average[key], goals[key])}% din ${formatDecimal(goals[key])} g</small><div class="report-progress"><span style="width:${Math.min(100, reportPercent(average[key], goals[key]))}%"></span></div></div>`).join('')}</div></article>
+      <article class="report-card report-card-wide"><h2>Evoluția pe zile</h2><div class="report-chart">${daily.map((day) => `<div class="report-chart-row"><span class="report-chart-label">${formatReportDate(day.date, { weekday: 'short' })}</span><div class="report-bars"><span class="report-bar report-bar-calories" style="width:${Math.max(2, (day.totals.calories / maxCalories) * 100)}%"></span><span class="report-bar report-bar-goal" style="width:${Math.max(2, (goals.calories / maxCalories) * 100)}%"></span></div><span class="report-chart-values">${formatNumber(day.totals.calories)} / ${formatNumber(goals.calories)}</span></div>`).join('')}</div><div class="report-legend"><span>Calorii consumate</span><span>Obiectiv</span></div></article>
+      <article class="report-card"><h2>Distribuția meselor</h2><div class="meal-distribution">${Object.entries(mealLabels).map(([key, name]) => `<div class="meal-distribution-item"><h3>${name}</h3><strong>${total.calories ? Math.round((mealTotals[key] / total.calories) * 100) : 0}%</strong><small>${formatNumber(mealTotals[key])} kcal</small></div>`).join('')}</div></article>
+      <article class="report-card"><h2>Statistici</h2><div class="report-stat-list"><div class="report-stat-row"><span>Mai multe calorii</span><strong>${dayLabel(mostCalories)}</strong></div><div class="report-stat-row"><span>Mai puține calorii</span><strong>${dayLabel(leastCalories)}</strong></div><div class="report-stat-row"><span>Mai multe proteine</span><strong>${dayLabel(mostProtein)}</strong></div><div class="report-stat-row"><span>Total mese</span><strong>${daily.reduce((count, day) => count + day.entries.length, 0)}</strong></div><div class="report-stat-row"><span>Rețete folosite</span><strong>${recipeCount}</strong></div></div></article>
+    </div>
+    <p class="report-note">${availableDays.length ? `În această perioadă ai avut o medie de ${formatNumber(average.calories)} kcal/zi, reprezentând ${percentage}% din obiectivul tău zilnic.` : 'Nu există suficiente date pentru a calcula o observație pentru această perioadă.'}</p>`;
+}
+
+async function refreshWeeklyReport() {
+  const target = document.querySelector('#weekly-report-content');
+  if (target) target.innerHTML = '<div class="report-empty">Se încarcă raportul...</div>';
+  renderWeeklyReport(await weeklyReportData(reportDays()));
+}
+
+document.querySelector('#previous-report-week')?.addEventListener('click', () => { reportWeekEnd = shiftDate(reportWeekEnd, -7); refreshWeeklyReport(); });
+document.querySelector('#next-report-week')?.addEventListener('click', () => { reportWeekEnd = shiftDate(reportWeekEnd, 7); refreshWeeklyReport(); });
+document.querySelector('#current-report-week')?.addEventListener('click', () => { reportWeekEnd = today; refreshWeeklyReport(); });
+document.querySelector('#report-back-button')?.addEventListener('click', () => { window.location.hash = 'dashboard-page'; });
 
 function isFavorite(foodKey) { return readStorage(storageKeys.favorites, []).includes(foodKey); }
 
@@ -719,6 +787,7 @@ function showPage(pageId) {
   const page = document.querySelector(`#${resolvedPageId}`) || document.querySelector('#dashboard-page');
   document.querySelectorAll('.app-page').forEach((item) => item.classList.toggle('is-active', item === page));
   pageLinks.forEach((link) => link.classList.toggle('active', link.dataset.page === page.id));
+  if (page.id === 'weekly-report-page') refreshWeeklyReport();
 }
 
 pageLinks.forEach((link) => link.addEventListener('click', (event) => {
@@ -747,9 +816,39 @@ const supabaseClient = window.supabase && supabaseConfig.url && supabaseConfig.p
     }
   })
   : null;
+window.__supabaseClient = supabaseClient;
 const authTabs = document.querySelectorAll('[data-auth-tab]');
 const authForms = document.querySelectorAll('[data-auth-form]');
 const accountStatus = document.querySelector('#account-status');
+let activeSupabaseSession = null;
+
+async function saveCalculatorProfile(profile) {
+  const journal = readStorage(storageKeys.journal, {});
+  journal.calculatorProfile = profile;
+  saveStorage(storageKeys.journal, journal);
+  if (!supabaseClient || !activeSupabaseSession?.user) return;
+  const userId = activeSupabaseSession.user.id;
+  const { data: currentProfile } = await supabaseClient
+    .from('profiles')
+    .select('settings')
+    .eq('id', userId)
+    .maybeSingle();
+  await supabaseClient
+    .from('profiles')
+    .update({ settings: { ...(currentProfile?.settings || {}), calculatorProfile: profile } })
+    .eq('id', userId);
+}
+
+async function restoreCalculatorProfileFromSupabase(session) {
+  if (!supabaseClient || !session?.user) return;
+  const { data: profile } = await supabaseClient
+    .from('profiles')
+    .select('settings')
+    .eq('id', session.user.id)
+    .maybeSingle();
+  const savedProfile = profile?.settings?.calculatorProfile;
+  if (savedProfile) applyCalculatorProfile(savedProfile);
+}
 
 function setAuthError(id, message) { document.querySelector(id).textContent = message || ''; }
 
@@ -759,6 +858,9 @@ function setProtectedPagesVisible() {
 
 function renderAccountState(session) {
   const signedIn = Boolean(session);
+  activeSupabaseSession = session;
+  window.__activeSupabaseSession = session;
+  if (window.location.hash === '#weekly-report-page') refreshWeeklyReport();
   setProtectedPagesVisible();
   document.querySelector('#login-form').hidden = signedIn;
   document.querySelector('#register-form').hidden = signedIn;
@@ -770,6 +872,7 @@ function renderAccountState(session) {
   const name = session.user.user_metadata?.display_name || session.user.user_metadata?.name || session.user.email.split('@')[0];
   accountStatus.innerHTML = `<strong>Salut, ${name}!</strong><br>Ești autentificat cu ${session.user.email}.<br><button class="reset-button" type="button" id="logout-button">Ieși din cont</button>`;
   document.querySelector('#logout-button').addEventListener('click', async () => { await supabaseClient.auth.signOut(); });
+  restoreCalculatorProfileFromSupabase(session);
   if (window.location.hash === '#account-page') window.location.hash = 'dashboard-page';
 }
 

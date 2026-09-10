@@ -23,6 +23,7 @@
         <a class="mode-button" href="#recipes-page" data-page="recipes-page">Rețetele mele</a>
         <a class="mode-button" href="#foods-page" data-page="foods-page">Alimentele mele</a>
         <a class="mode-button" href="#calculator-page" data-page="calculator-page">Calcul standard</a>
+        <a class="mode-button" href="#weekly-report-page" data-page="weekly-report-page">Raport săptămânal</a>
         <a class="mode-button" href="#account-page" data-page="account-page">Cont</a>
       </nav>
     </header>
@@ -68,6 +69,26 @@
           <div id="foods-library-list" class="foods-library-list"></div>
         </section>
       </div>
+
+        <div class="app-page weekly-report-page" id="weekly-report-page">
+          <section class="weekly-report-section" aria-labelledby="weekly-report-title">
+            <div class="weekly-report-topbar">
+              <div class="page-heading">
+                <p class="eyebrow">Privire de ansamblu</p>
+                <h1 id="weekly-report-title">Raport săptămânal</h1>
+                <p>Rezumatul meselor și al valorilor tale din ultimele 7 zile.</p>
+              </div>
+              <button class="reset-button report-back-button" type="button" id="report-back-button">← Înapoi la Dashboard</button>
+            </div>
+            <div class="report-period-bar">
+              <button class="date-nav-button" type="button" id="previous-report-week" aria-label="Săptămâna precedentă">‹</button>
+              <strong id="report-period-label">--</strong>
+              <button class="date-nav-button" type="button" id="next-report-week" aria-label="Săptămâna următoare">›</button>
+              <button class="secondary-button" type="button" id="current-report-week">Săptămâna curentă</button>
+            </div>
+            <div id="weekly-report-content" class="weekly-report-content"></div>
+          </section>
+        </div>
 
       <div class="food-modal" id="food-modal" hidden>
         <div class="modal-backdrop" data-close-food></div>
@@ -213,55 +234,6 @@
         </section>
       </div>
 
-      <section class="food-section" id="food-section" aria-labelledby="food-title">
-        <div class="food-intro">
-          <p class="section-kicker">03 / Alimente</p>
-          <h2 id="food-title">Calculează ce<br>pui în farfurie.</h2>
-          <p>Alege un aliment și introdu cantitatea. Valorile sunt calculate pentru gramajul tău, nu doar pentru 100 g.</p>
-        </div>
-        <div class="panel food-calculator-panel">
-          <form id="food-form" novalidate>
-            <label class="field select-field">
-              <span>Alimentul <b>*</b></span>
-              <span class="select-wrap">
-                <select id="food" name="food" required>
-                  <option value="" selected disabled>Alege un aliment</option>
-                  <option value="oats">Fulgi de ovăz</option>
-                  <option value="chicken">Piept de pui</option>
-                  <option value="egg">Ou întreg</option>
-                  <option value="rice">Orez gătit</option>
-                  <option value="potato">Cartof copt</option>
-                  <option value="banana">Banană</option>
-                  <option value="apple">Măr</option>
-                  <option value="yogurt">Iaurt grecesc</option>
-                  <option value="salmon">Somon</option>
-                  <option value="lentils">Linte gătită</option>
-                </select>
-              </span>
-            </label>
-            <label class="field food-amount-field">
-              <span>Cantitate <b>*</b></span>
-              <span class="input-wrap"><input id="food-amount" name="amount" type="number" min="1" max="5000" placeholder="100" required><small>grame</small></span>
-            </label>
-            <div id="food-error" class="form-error" role="alert" aria-live="polite"></div>
-            <div class="form-actions food-actions">
-              <button class="primary-button" type="submit"><span>Calculează valorile</span><span class="button-arrow" aria-hidden="true">↗</span></button>
-              <button class="reset-button" type="reset">Resetează</button>
-            </div>
-          </form>
-          <div class="food-results" id="food-results" aria-live="polite">
-            <div class="food-result-heading"><span>Valori nutriționale</span><small id="food-serving">per 100 g</small></div>
-            <div class="food-nutrients">
-              <div><strong id="food-calories">—</strong><small>kcal</small></div>
-              <div><strong id="food-protein">—</strong><small>proteine</small></div>
-              <div><strong id="food-carbs">—</strong><small>carbohidrați</small></div>
-              <div><strong id="food-fats">—</strong><small>grăsimi</small></div>
-              <div><strong id="food-fiber">—</strong><small>fibre</small></div>
-            </div>
-            <p class="food-note">Valorile pot varia în funcție de soi, brand și modul de preparare.</p>
-          </div>
-        </div>
-      </section>
       </div>
       <div class="app-page" id="recipes-page">
       <section class="recipes-section" id="recipes-section" aria-labelledby="recipes-title">
