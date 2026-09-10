@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Calculează-ți necesarul zilnic de calorii și macronutrienți.">
+  <title>Calorie Calculator | Necesar caloric zilnic</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="page-shell">
+    <header class="site-header">
+      <a class="brand" href="index.html" aria-label="Calorie Calculator - pagina principală">
+        <span class="brand-mark" aria-hidden="true">◒</span>
+        <span>Calorie <strong>Calculator</strong></span>
+      </a>
+      <div class="header-note"><span class="status-dot" aria-hidden="true"></span> Calcul simplu. Obiective clare.</div>
+    </header>
+
+    <main>
+      <section class="hero" aria-labelledby="page-title">
+        <div class="hero-copy">
+          <p class="eyebrow">Energie pentru fiecare zi</p>
+          <h1 id="page-title">Găsește ritmul potrivit pentru <em>tine.</em></h1>
+          <p class="hero-description">Estimează-ți necesarul zilnic de calorii și află cum să-ți echilibrezi macronutrienții în funcție de obiectivul tău.</p>
+        </div>
+        <div class="hero-stamp" aria-hidden="true">
+          <span>CAL</span>
+          <strong>01</strong>
+          <small>DAILY<br>FUEL</small>
+        </div>
+      </section>
+
+      <div class="content-grid">
+        <section class="panel calculator-panel" aria-labelledby="form-title">
+          <div class="panel-heading">
+            <div>
+              <p class="section-kicker">01 / Profilul tău</p>
+              <h2 id="form-title">Spune-ne câteva lucruri</h2>
+            </div>
+            <span class="required-note">* obligatoriu</span>
+          </div>
+
+          <form id="calorie-form" novalidate>
+            <fieldset class="form-group">
+              <legend>Sex <span>*</span></legend>
+              <div class="gender-options">
+                <label class="choice-card">
+                  <input type="radio" name="sex" value="female" required>
+                  <span class="choice-icon" aria-hidden="true">♀</span>
+                  <span>Femeie</span>
+                </label>
+                <label class="choice-card">
+                  <input type="radio" name="sex" value="male">
+                  <span class="choice-icon" aria-hidden="true">♂</span>
+                  <span>Bărbat</span>
+                </label>
+              </div>
+            </fieldset>
+
+            <div class="input-row">
+              <label class="field">
+                <span>Vârstă <b>*</b></span>
+                <span class="input-wrap"><input id="age" name="age" type="number" min="15" max="100" placeholder="28" required><small>ani</small></span>
+              </label>
+              <label class="field">
+                <span>Greutate <b>*</b></span>
+                <span class="input-wrap"><input id="weight" name="weight" type="number" min="30" max="300" step="0.1" placeholder="68" required><small>kg</small></span>
+              </label>
+              <label class="field">
+                <span>Înălțime <b>*</b></span>
+                <span class="input-wrap"><input id="height" name="height" type="number" min="100" max="250" placeholder="172" required><small>cm</small></span>
+              </label>
+            </div>
+
+            <label class="field select-field">
+              <span>Nivelul de activitate <b>*</b></span>
+              <span class="select-wrap">
+                <select id="activity" name="activity" required>
+                  <option value="" selected disabled>Alege nivelul tău de activitate</option>
+                  <option value="1.2">Sedentar — puțină sau deloc mișcare</option>
+                  <option value="1.375">Ușor activ — sport 1-3 zile / săptămână</option>
+                  <option value="1.55">Moderat activ — sport 3-5 zile / săptămână</option>
+                  <option value="1.725">Foarte activ — sport 6-7 zile / săptămână</option>
+                  <option value="1.9">Extrem de activ — antrenament intens zilnic</option>
+                </select>
+              </span>
+            </label>
+
+            <fieldset class="form-group goal-group">
+              <legend>Obiectivul tău <span>*</span></legend>
+              <div class="goal-options">
+                <label class="goal-option">
+                  <input type="radio" name="goal" value="lose" required>
+                  <span class="goal-symbol">↓</span><span><strong>Slăbesc</strong><small> -15% calorii</small></span>
+                </label>
+                <label class="goal-option active-maintain">
+                  <input type="radio" name="goal" value="maintain">
+                  <span class="goal-symbol">↔</span><span><strong>Mențin</strong><small> echilibru</small></span>
+                </label>
+                <label class="goal-option">
+                  <input type="radio" name="goal" value="gain">
+                  <span class="goal-symbol">↑</span><span><strong>Mă îngraș</strong><small> +10% calorii</small></span>
+                </label>
+              </div>
+            </fieldset>
+
+            <div id="form-error" class="form-error" role="alert" aria-live="polite"></div>
+            <div class="form-actions">
+              <button class="primary-button" type="submit"><span>Calculează necesarul</span><span class="button-arrow" aria-hidden="true">↗</span></button>
+              <button class="reset-button" type="reset">Resetează</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="panel results-panel" id="results" aria-labelledby="results-title" aria-live="polite">
+          <div class="results-empty">
+            <div class="empty-orbit" aria-hidden="true"><span>✦</span></div>
+            <p class="section-kicker">02 / Rezultatele tale</p>
+            <h2 id="results-title">Rezultatele<br>vor apărea aici</h2>
+            <p>Completează profilul pentru o estimare personalizată a necesarului tău zilnic.</p>
+          </div>
+          <div class="results-content" hidden>
+            <div class="results-title-row">
+              <div><p class="section-kicker">02 / Rezultatele tale</p><h2 id="results-title-filled">Planul tău zilnic</h2></div>
+              <span class="result-badge">ESTIMARE</span>
+            </div>
+            <div class="calorie-highlight">
+              <span>Necesar recomandat</span>
+              <strong id="recommended-calories">2.100</strong>
+              <small>kcal / zi</small>
+            </div>
+            <div class="metric-list">
+              <div class="metric"><span class="metric-icon orange">◈</span><span><small>Metabolism bazal (BMR)</small><strong id="bmr-value">— kcal</strong></span></div>
+              <div class="metric"><span class="metric-icon teal">◉</span><span><small>Calorii de menținere (TDEE)</small><strong id="maintenance-value">— kcal</strong></span></div>
+            </div>
+            <div class="macro-section">
+              <div class="macro-heading"><span>Macronutrienți zilnici</span><small>orientativ</small></div>
+              <div class="macro-grid">
+                <div class="macro-card protein"><div class="macro-top"><span class="macro-dot"></span><span>Proteine</span></div><strong id="protein-value">— g</strong><small>pentru sațietate</small></div>
+                <div class="macro-card carbs"><div class="macro-top"><span class="macro-dot"></span><span>Carbohidrați</span></div><strong id="carbs-value">— g</strong><small>pentru energie</small></div>
+                <div class="macro-card fats"><div class="macro-top"><span class="macro-dot"></span><span>Grăsimi</span></div><strong id="fats-value">— g</strong><small>pentru echilibru</small></div>
+              </div>
+            </div>
+            <p class="estimate-note">Rezultatele sunt estimări orientative și nu înlocuiesc sfatul unui specialist în nutriție.</p>
+          </div>
+        </section>
+      </div>
+    </main>
+    <footer><span>CALORIE CALCULATOR</span><span>Creat pentru alegeri mai conștiente</span></footer>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>
