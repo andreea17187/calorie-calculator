@@ -669,6 +669,34 @@ function renderFoodLibrary() {
 }
 
 document.querySelector('#foods-library-search').addEventListener('input', renderFoodLibrary);
+document.querySelector('#open-food-library-form').addEventListener('click', () => {
+  document.querySelector('#food-library-modal').hidden = false;
+  document.querySelector('#library-food-name').focus();
+});
+document.querySelectorAll('[data-close-food-library]').forEach((button) => button.addEventListener('click', () => {
+  document.querySelector('#food-library-modal').hidden = true;
+  document.querySelector('#food-library-form').reset();
+  document.querySelector('#library-food-error').textContent = '';
+}));
+document.querySelector('#food-library-form').addEventListener('submit', (event) => {
+  event.preventDefault();
+  const name = document.querySelector('#library-food-name').value.trim();
+  const values = ['calories', 'protein', 'carbs', 'fats', 'fiber'].map((key) => Number(document.querySelector(`#library-food-${key}`).value));
+  const unitWeight = Number(document.querySelector('#library-food-unit').value);
+  const error = document.querySelector('#library-food-error');
+  if (!name || values.some((value) => !Number.isFinite(value) || value < 0)) {
+    error.textContent = 'Introdu numele și toate valorile nutriționale.';
+    return;
+  }
+  const key = `custom-${Date.now()}`;
+  foodDatabase[key] = { name, calories: values[0], protein: values[1], carbs: values[2], fats: values[3], fiber: values[4], units: unitWeight > 0 ? { piece: unitWeight } : {}, custom: true };
+  saveCustomFoods();
+  prepareMealForm();
+  renderFoodLibrary();
+  document.querySelector('#food-library-modal').hidden = true;
+  event.target.reset();
+  error.textContent = '';
+});
 document.querySelector('#foods-library-list').addEventListener('submit', (event) => {
   event.preventDefault();
   const card = event.target.closest('[data-library-food]');
