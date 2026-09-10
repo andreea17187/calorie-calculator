@@ -230,9 +230,10 @@ footer { display: flex; justify-content: space-between; padding: 38px 7.5% 30px;
   .meals-heading { align-items: flex-start; flex-direction: column; gap: 12px; margin: 22px 0 14px; }
   .meals-heading .text-button { width: 100%; text-align: center; }
   .meal-card { padding: 14px 12px; }
-  .meal-card-head { grid-template-columns: minmax(0, 1fr) auto; gap: 10px; }
+  .meal-card-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; }
+  .meal-card-title { min-width: 0; }
   .meal-total { text-align: right; }
-  .meal-add-button { grid-column: 1 / -1; justify-self: stretch; width: 100%; }
+  .meal-add-button { grid-column: 1 / -1; justify-self: stretch; width: 100%; min-height: 38px; padding: 8px 12px; text-align: center; }
   .food-entry { grid-template-columns: 23px minmax(0, 1fr) auto; gap: 8px; }
   .food-entry-name { min-width: 0; overflow-wrap: anywhere; }
   .dashboard-side { display: grid; gap: 12px; margin-top: 0; }
