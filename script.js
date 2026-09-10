@@ -959,7 +959,8 @@ async function syncAppDataToSupabase() {
     if (snapshot[key] !== null && snapshot[key] !== undefined) localStorage.setItem(getStorageKey(key), JSON.stringify(snapshot[key]));
   });
   const { data: profile } = await client.from('profiles').select('settings').eq('id', session.user.id).maybeSingle();
-  await client.from('profiles').update({ settings: { ...(profile?.settings || {}), calorieCalculatorData: snapshot } }).eq('id', session.user.id);
+  const { error } = await client.from('profiles').upsert({ id: session.user.id, settings: { ...(profile?.settings || {}), calorieCalculatorData: snapshot } }, { onConflict: 'id' });
+  if (error) console.error('Nu am putut sincroniza datele aplicației.', error);
 }
 
 function queueSupabaseSync(key) {
@@ -1002,8 +1003,7 @@ async function saveCalculatorProfile(profile) {
     .maybeSingle();
   await supabaseClient
     .from('profiles')
-    .update({ settings: { ...(currentProfile?.settings || {}), calculatorProfile: profile } })
-    .eq('id', userId);
+    .upsert({ id: userId, settings: { ...(currentProfile?.settings || {}), calculatorProfile: profile } }, { onConflict: 'id' });
 }
 
 async function restoreCalculatorProfileFromSupabase(session) {
