@@ -87,6 +87,7 @@
 .food-library-card h3 { margin: 0 0 4px; font-family: Outfit, sans-serif; font-size: 16px; }
 .food-library-card > small { color: var(--muted); font-size: 10px; }
 .food-library-form { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin-top: 15px; }
+.food-library-name-field { grid-column: 1 / -1; }
 .food-library-form label { color: var(--muted); font-size: 10px; font-weight: 700; }
 .food-library-form input { width: 100%; height: 38px; margin-top: 5px; padding: 0 8px; border: 1px solid var(--line); border-radius: 7px; background: #fbfcfb; color: var(--ink); font-size: 12px; }
 .food-library-form input:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(37,91,77,.08); outline: 0; }

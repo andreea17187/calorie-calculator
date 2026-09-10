@@ -165,7 +165,23 @@ const foodDatabase = {
   greenBeans: { name: 'Fasole verde', calories: 31, protein: 1.8, carbs: 7, fats: 0.2, fiber: 2.7, units: {} },
   mushroom: { name: 'Ciuperci', calories: 22, protein: 3.1, carbs: 3.3, fats: 0.3, fiber: 1, units: {} },
   sweetPotato: { name: 'Cartof dulce', calories: 86, protein: 1.6, carbs: 20.1, fats: 0.1, fiber: 3, units: { piece: 180 } },
-  beetroot: { name: 'Sfeclă roșie', calories: 43, protein: 1.6, carbs: 9.6, fats: 0.2, fiber: 2.8, units: {} }
+  beetroot: { name: 'Sfeclă roșie', calories: 43, protein: 1.6, carbs: 9.6, fats: 0.2, fiber: 2.8, units: {} },
+  poppySeeds: { name: 'Semințe de mac', calories: 525, protein: 18, carbs: 28.1, fats: 41.6, fiber: 19.5, units: { tablespoon: 9, teaspoon: 3 } },
+  chiaSeeds: { name: 'Semințe de chia', calories: 486, protein: 16.5, carbs: 42.1, fats: 30.7, fiber: 34.4, units: { tablespoon: 12, teaspoon: 4 } },
+  sunflowerSeeds: { name: 'Semințe de floarea-soarelui', calories: 584, protein: 20.8, carbs: 20, fats: 51.5, fiber: 8.6, units: { tablespoon: 9, teaspoon: 3 } },
+  pumpkinSeeds: { name: 'Semințe de dovleac', calories: 559, protein: 30.2, carbs: 10.7, fats: 49.1, fiber: 6, units: { tablespoon: 10, teaspoon: 3.3 } },
+  sesameSeeds: { name: 'Semințe de susan', calories: 573, protein: 17.7, carbs: 23.4, fats: 49.7, fiber: 11.8, units: { tablespoon: 9, teaspoon: 3 } },
+  flaxSeeds: { name: 'Semințe de in', calories: 534, protein: 18.3, carbs: 28.9, fats: 42.2, fiber: 27.3, units: { tablespoon: 10, teaspoon: 3.3 } },
+  cornflakes: { name: 'Fulgi de porumb', calories: 357, protein: 7.5, carbs: 84.1, fats: 0.4, fiber: 3.3, units: { tablespoon: 3 } },
+  coconutOil: { name: 'Ulei de cocos', calories: 892, protein: 0, carbs: 0, fats: 99.1, fiber: 0, units: { tablespoon: 14, teaspoon: 5 } },
+  appleVinegar: { name: 'Oțet de mere', calories: 21, protein: 0, carbs: 0.9, fats: 0, fiber: 0, units: { tablespoon: 15, teaspoon: 5 } },
+  whiteVinegar: { name: 'Oțet alb', calories: 18, protein: 0, carbs: 0.4, fats: 0, fiber: 0, units: { tablespoon: 15, teaspoon: 5 } },
+  agaveSyrup: { name: 'Sirop de agave', calories: 310, protein: 0.1, carbs: 76.7, fats: 0.5, fiber: 0, units: { tablespoon: 21, teaspoon: 7 } },
+  mapleSyrup: { name: 'Sirop de arțar', calories: 260, protein: 0, carbs: 67.4, fats: 0.1, fiber: 0, units: { tablespoon: 20, teaspoon: 7 } },
+  cocoaPowder: { name: 'Cacao pudră', calories: 228, protein: 19.6, carbs: 57.9, fats: 13.1, fiber: 29.8, units: { tablespoon: 5, teaspoon: 1.7 } },
+  almonds: { name: 'Migdale', calories: 579, protein: 21.2, carbs: 21.6, fats: 49.9, fiber: 12.5, units: { piece: 1.2 } },
+  walnuts: { name: 'Nuci', calories: 654, protein: 15.2, carbs: 13.7, fats: 65.2, fiber: 6.7, units: { piece: 4 } },
+  raisins: { name: 'Stafide', calories: 299, protein: 3.1, carbs: 79.2, fats: 0.5, fiber: 3.7, units: { tablespoon: 9 } }
 };
 
 const recommendationFoods = {
@@ -700,12 +716,13 @@ function renderFoodLibrary() {
       <h3>${food.name}</h3>
       <small>Valori nutriționale pentru 100 g</small>
       <form class="food-library-form">
+        <label class="food-library-name-field">Nume ingredient<input name="name" type="text" value="${food.name}" required></label>
         <label>Calorii<input name="calories" type="number" min="0" step="0.1" value="${food.calories}"></label>
         <label>Proteine<input name="protein" type="number" min="0" step="0.1" value="${food.protein}"></label>
         <label>Carbohidrați<input name="carbs" type="number" min="0" step="0.1" value="${food.carbs}"></label>
         <label>Grăsimi<input name="fats" type="number" min="0" step="0.1" value="${food.fats}"></label>
         <label>Fibre<input name="fiber" type="number" min="0" step="0.1" value="${food.fiber}"></label>
-        <div class="food-library-actions"><button class="secondary-button" type="submit">Salvează valorile</button></div>
+        <div class="food-library-actions"><button class="secondary-button" type="submit">Salvează modificările</button></div>
       </form>
     </article>`).join('') : '<div class="food-library-empty">Nu am găsit niciun aliment.</div>';
 }
@@ -743,9 +760,10 @@ document.querySelector('#foods-library-list').addEventListener('submit', (event)
   event.preventDefault();
   const card = event.target.closest('[data-library-food]');
   const food = foodDatabase[card.dataset.libraryFood];
+  const name = String(new FormData(event.target).get('name') || '').trim();
   const values = Object.fromEntries(['calories', 'protein', 'carbs', 'fats', 'fiber'].map((key) => [key, Number(new FormData(event.target).get(key))]));
-  if (!food || Object.values(values).some((value) => !Number.isFinite(value) || value < 0)) return;
-  Object.assign(food, values, { custom: true });
+  if (!food || !name || Object.values(values).some((value) => !Number.isFinite(value) || value < 0)) return;
+  Object.assign(food, values, { name, custom: true });
   saveCustomFoods();
   prepareMealForm();
   renderFoodLibrary();
@@ -755,7 +773,7 @@ document.querySelector('#foods-library-list').addEventListener('submit', (event)
   saveButton.textContent = 'Salvat!';
   saveButton.classList.add('is-saved');
   window.setTimeout(() => {
-    saveButton.textContent = 'Salvează valorile';
+    saveButton.textContent = 'Salvează modificările';
     saveButton.classList.remove('is-saved');
   }, 1400);
 });
