@@ -501,7 +501,40 @@ let recipeMealContext = null;
 let editingMealEntryContext = null;
 let ingredientCounter = 0;
 
+const recipeServingsInput = document.querySelector('#recipe-servings');
+if (recipeServingsInput) {
+  recipeServingsInput.id = 'recipe-total-grams';
+  recipeServingsInput.closest('.field').classList.add('total-grams-field');
+  recipeServingsInput.min = '1';
+  recipeServingsInput.max = '100000';
+  recipeServingsInput.step = '1';
+  recipeServingsInput.value = '';
+  recipeServingsInput.required = false;
+  recipeServingsInput.previousElementSibling.textContent = 'Cantitate totală (g)';
+  const gramsToggle = document.createElement('label');
+  gramsToggle.className = 'optional-grams-toggle';
+  gramsToggle.innerHTML = '<input id="recipe-use-grams" type="checkbox"><span>Introdu cantitățile în grame (opțional)</span>';
+  recipeServingsInput.closest('.field').insertAdjacentElement('beforebegin', gramsToggle);
+  const consumedLabel = document.createElement('label');
+  consumedLabel.className = 'field consumed-grams-field';
+  consumedLabel.innerHTML = '<span>Cantitate consumată (g)</span><input id="recipe-consumed-grams" type="number" min="1" max="100000" step="1" value=""><small class="unit-hint">Cât ai mâncat la această masă</small>';
+  consumedLabel.hidden = true;
+  recipeServingsInput.closest('.field').insertAdjacentElement('afterend', consumedLabel);
+  recipeServingsInput.closest('.field').hidden = true;
+  const toggleGramsFields = () => {
+    const enabled = document.querySelector('#recipe-use-grams').checked;
+    document.querySelector('.total-grams-field').hidden = !enabled;
+    document.querySelector('.consumed-grams-field').hidden = !enabled;
+    document.querySelector('#recipe-total-grams').required = enabled;
+    document.querySelector('#recipe-consumed-grams').required = enabled;
+    updateRecipePreview();
+  };
+  gramsToggle.querySelector('input').addEventListener('change', toggleGramsFields);
+  document.querySelector('.per-serving > span')?.replaceChildren('Cantitatea consumată');
+}
+
 function recipeTotals(ingredients) { return nutrientTotals(ingredients.map((ingredient) => ingredient.nutrients)); }
+function recipeIngredientGrams(ingredients) { return ingredients.reduce((total, ingredient) => total + ingredient.nutrients.grams, 0); }
 
 function recipeEntryName(entry) { return entry.isRecipe ? entry.recipeName : foodDatabase[entry.food]?.name || entry.food; }
 
@@ -618,12 +651,16 @@ function collectIngredients() {
 function updateRecipePreview() {
   const ingredients = collectIngredients();
   const total = recipeTotals(ingredients);
-  const servings = Number(document.querySelector('#recipe-servings').value) || 1;
+  const ingredientGrams = recipeIngredientGrams(ingredients);
+  const gramsEnabled = document.querySelector('#recipe-use-grams').checked;
+  const totalGrams = Number(document.querySelector('#recipe-total-grams').value) || ingredientGrams || 1;
+  const consumedGrams = Number(document.querySelector('#recipe-consumed-grams').value) || totalGrams;
+  const consumedRatio = gramsEnabled ? consumedGrams / totalGrams : 1;
   document.querySelector('#recipe-serving-total').textContent = `${ingredients.length} ${ingredients.length === 1 ? 'ingredient' : 'ingrediente'}`;
   document.querySelector('#recipe-total-calories').textContent = `${formatNumber(total.calories)} kcal`;
   document.querySelector('#recipe-total-macros').textContent = `P ${formatDecimal(total.protein)} g · C ${formatDecimal(total.carbs)} g · G ${formatDecimal(total.fats)} g · F ${formatDecimal(total.fiber)} g`;
-  document.querySelector('#recipe-per-serving').textContent = `${formatNumber(total.calories / servings)} kcal`;
-  document.querySelector('#recipe-per-serving-macros').textContent = `P ${formatDecimal(total.protein / servings)} g · C ${formatDecimal(total.carbs / servings)} g · G ${formatDecimal(total.fats / servings)} g · F ${formatDecimal(total.fiber / servings)} g`;
+  document.querySelector('#recipe-per-serving').textContent = `${formatNumber(total.calories * consumedRatio)} kcal`;
+  document.querySelector('#recipe-per-serving-macros').textContent = `P ${formatDecimal(total.protein * consumedRatio)} g · C ${formatDecimal(total.carbs * consumedRatio)} g · G ${formatDecimal(total.fats * consumedRatio)} g · F ${formatDecimal(total.fiber * consumedRatio)} g`;
 }
 
 function openRecipeModal(recipe = null, mealType = null, mealEntry = null) {
@@ -633,11 +670,16 @@ function openRecipeModal(recipe = null, mealType = null, mealEntry = null) {
   document.querySelector('#recipe-modal').hidden = false;
   document.querySelector('#recipe-modal-title').textContent = recipe ? 'Editează masa' : mealType ? `Adaugă masă · ${mealLabels[mealType]}` : 'Rețetă nouă';
   document.querySelector('#recipe-name').value = recipe?.name || '';
-  document.querySelector('#recipe-servings').value = recipe?.servings || 1;
   document.querySelector('#custom-food-panel').hidden = true;
   document.querySelector('#recipe-error').textContent = '';
   document.querySelector('#ingredient-list').innerHTML = '';
   (recipe?.ingredients || [null]).forEach(addIngredientRow);
+  const ingredientGrams = recipeIngredientGrams(collectIngredients());
+  const totalGrams = recipe?.totalGrams || ingredientGrams || 100;
+  document.querySelector('#recipe-use-grams').checked = Boolean(recipe?.totalGrams || mealEntry?.totalGrams);
+  document.querySelector('#recipe-total-grams').value = totalGrams;
+  document.querySelector('#recipe-consumed-grams').value = recipe?.consumedGrams || mealEntry?.consumedGrams || (mealEntry?.portionPercent ? totalGrams * mealEntry.portionPercent / 100 : totalGrams);
+  document.querySelector('#recipe-use-grams').dispatchEvent(new Event('change'));
   updateRecipePreview();
 }
 
@@ -753,18 +795,21 @@ document.querySelector('#save-custom-food').addEventListener('click', () => {
 document.querySelector('[data-open-recipe]').addEventListener('click', () => openRecipeModal());
 document.querySelectorAll('[data-close-recipe]').forEach((button) => button.addEventListener('click', closeRecipeModal));
 document.querySelector('#add-ingredient').addEventListener('click', () => addIngredientRow());
-document.querySelector('#recipe-servings').addEventListener('input', updateRecipePreview);
+document.querySelector('#recipe-total-grams').addEventListener('input', updateRecipePreview);
+document.querySelector('#recipe-consumed-grams').addEventListener('input', updateRecipePreview);
 document.querySelector('#recipe-search').addEventListener('input', renderRecipes);
 document.querySelector('#recipe-form').addEventListener('submit', (event) => {
   event.preventDefault();
   const name = document.querySelector('#recipe-name').value.trim();
   const ingredients = collectIngredients();
-  const servings = Number(document.querySelector('#recipe-servings').value);
+  const gramsEnabled = document.querySelector('#recipe-use-grams').checked;
+  const totalGrams = Number(document.querySelector('#recipe-total-grams').value);
+  const consumedGrams = Number(document.querySelector('#recipe-consumed-grams').value);
   const unresolved = [...document.querySelectorAll('.ingredient-row')].some((row) => row.querySelector('.ingredient-food').value.trim() && !row.querySelector('.ingredient-food').dataset.foodKey);
-  if (!name || !ingredients.length || unresolved || !servings || servings < 1) { document.querySelector('#recipe-error').textContent = unresolved ? 'Alimentele noi trebuie salvate cu valorile lor nutriționale înainte de a continua.' : 'Completează denumirea, adaugă cel puțin un ingredient și setează porțiile.'; return; }
+  if (!name || !ingredients.length || unresolved || (gramsEnabled && (!totalGrams || !consumedGrams || totalGrams < 1 || consumedGrams < 1 || consumedGrams > totalGrams))) { document.querySelector('#recipe-error').textContent = unresolved ? 'Alimentele noi trebuie salvate cu valorile lor nutriționale înainte de a continua.' : 'Introdu cantitatea totală și cantitatea consumată. Cantitatea consumată nu poate depăși totalul.'; return; }
   const recipes = readStorage(recipeStorageKey, []);
   const previous = recipes.find((recipe) => recipe.id === editingRecipeId);
-  const recipe = { id: editingRecipeId || `${Date.now()}-${Math.random()}`, name, ingredients, servings, favorite: previous?.favorite || false };
+  const recipe = { id: editingRecipeId || `${Date.now()}-${Math.random()}`, name, ingredients, servings: previous?.servings || 1, totalGrams: gramsEnabled ? totalGrams : null, consumedGrams: gramsEnabled ? consumedGrams : null, favorite: previous?.favorite || false };
   saveStorage(recipeStorageKey, editingRecipeId ? recipes.map((item) => item.id === editingRecipeId ? recipe : item) : [...recipes, recipe]);
   if (recipeMealContext) {
     const total = recipeTotals(ingredients);
@@ -773,8 +818,9 @@ document.querySelector('#recipe-form').addEventListener('submit', (event) => {
       const entries = journal[currentDate][mealKey] || [];
       journal[currentDate][mealKey] = entries.filter((entry) => entry.id !== editingMealEntryContext?.id);
     });
-    const portions = editingMealEntryContext?.amount || 1;
-    journal[currentDate][recipeMealContext].push({ id: editingMealEntryContext?.id || `${Date.now()}-${Math.random()}`, recipeId: recipe.id, isRecipe: true, recipeName: name, amount: portions, unit: 'portion', calories: total.calories * portions / servings, protein: total.protein * portions / servings, carbs: total.carbs * portions / servings, fats: total.fats * portions / servings, fiber: total.fiber * portions / servings });
+    const portions = gramsEnabled ? consumedGrams / totalGrams : 1;
+    const portionPercent = portions * 100;
+    journal[currentDate][recipeMealContext].push({ id: editingMealEntryContext?.id || `${Date.now()}-${Math.random()}`, recipeId: recipe.id, isRecipe: true, recipeName: name, amount: portions, portionPercent, totalGrams: gramsEnabled ? totalGrams : null, consumedGrams: gramsEnabled ? consumedGrams : null, unit: 'portion', calories: total.calories * portions / recipe.servings, protein: total.protein * portions / recipe.servings, carbs: total.carbs * portions / recipe.servings, fats: total.fats * portions / recipe.servings, fiber: total.fiber * portions / recipe.servings });
     saveStorage(storageKeys.journal, journal);
   }
   closeRecipeModal(); renderRecipes(); renderMeals();
