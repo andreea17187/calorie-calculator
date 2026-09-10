@@ -26,6 +26,7 @@
 .auth-form.is-active { display: grid; }
 .auth-form .field { margin: 0; }
 .auth-submit { width: 100%; justify-content: space-between; margin-top: 2px; }
+.auth-reset-link { display: block; margin: 17px auto 0; }
 .account-status { padding: 16px; border-radius: 9px; background: #edf6f0; color: var(--green); font-size: 13px; line-height: 1.5; }
 .account-status button { margin-top: 12px; }
 @media (max-width: 800px) { .account-section { grid-template-columns: 1fr; gap: 30px; padding: 50px 7.5%; min-height: auto; } }
@@ -53,7 +54,7 @@ body { margin: 0; background: var(--paper); color: var(--ink); font-family: "DM 
 button, input, select { font: inherit; }
 button { cursor: pointer; }
 .page-shell { max-width: 1280px; margin: 0 auto; padding: 0 44px; overflow: hidden; }
-.site-header { min-height: 88px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); }
+.site-header { position: relative; z-index: 20; min-height: 88px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); background: var(--paper); }
 .brand { color: var(--ink); display: flex; align-items: center; gap: 10px; font-family: Outfit, sans-serif; font-size: 17px; font-weight: 600; text-decoration: none; letter-spacing: -.3px; }
 .brand strong { font-weight: 800; }
 .brand-mark { width: 29px; height: 29px; display: grid; place-items: center; border-radius: 50%; color: var(--surface); background: var(--green); font-size: 18px; transform: rotate(-25deg); }

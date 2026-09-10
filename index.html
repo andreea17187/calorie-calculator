@@ -293,9 +293,16 @@
               <label class="field"><span>Nume</span><input id="register-name" type="text" autocomplete="name" required></label>
               <label class="field"><span>Email</span><input id="register-email" type="email" autocomplete="email" required></label>
               <label class="field"><span>Parolă</span><input id="register-password" type="password" minlength="6" autocomplete="new-password" required></label>
+              <label class="field"><span>Confirmă parola</span><input id="register-password-confirm" type="password" minlength="6" autocomplete="new-password" required></label>
               <div class="form-error" id="register-error" role="alert"></div>
               <button class="primary-button auth-submit" type="submit"><span>Creează contul</span><span class="button-arrow">↗</span></button>
             </form>
+            <form class="auth-form" id="reset-form" data-auth-form="reset">
+              <label class="field"><span>Email</span><input id="reset-email" type="email" autocomplete="email" required></label>
+              <div class="form-error" id="reset-error" role="alert"></div>
+              <button class="primary-button auth-submit" type="submit"><span>Trimite linkul</span><span class="button-arrow">↗</span></button>
+            </form>
+            <button class="reset-button auth-reset-link" type="button" data-auth-tab="reset">Ai uitat parola?</button>
             <div class="account-status" id="account-status" hidden></div>
           </div>
         </section>
@@ -303,6 +310,8 @@
     </main>
     <footer><span>CALORIE CALCULATOR</span><span>Creat pentru alegeri mai conștiente</span></footer>
   </div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

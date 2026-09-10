@@ -67,7 +67,7 @@ function calculateResults(data) {
   return { bmr, maintenance, recommended, protein, carbs, fats };
 }
 
-function displayResults(values) {
+function displayResults(values, shouldScroll = true) {
   document.querySelector('#recommended-calories').textContent = formatNumber(values.recommended);
   document.querySelector('#bmr-value').textContent = `${formatNumber(values.bmr)} kcal`;
   document.querySelector('#maintenance-value').textContent = `${formatNumber(values.maintenance)} kcal`;
@@ -76,7 +76,7 @@ function displayResults(values) {
   document.querySelector('#fats-value').textContent = `${formatNumber(values.fats)} g`;
   emptyResults.hidden = true;
   resultsContent.hidden = false;
-  resultsPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  if (shouldScroll) resultsPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 form.addEventListener('submit', (event) => {
@@ -85,6 +85,9 @@ form.addEventListener('submit', (event) => {
   const error = validate(data);
   errorBox.textContent = error;
   if (error) return;
+  const journal = readStorage(storageKeys.journal, {});
+  journal.calculatorProfile = data;
+  saveStorage(storageKeys.journal, journal);
   displayResults(calculateResults(data));
 });
 
@@ -93,6 +96,22 @@ form.addEventListener('reset', () => {
   emptyResults.hidden = false;
   resultsContent.hidden = true;
 });
+
+function restoreCalculatorProfile() {
+  const journal = readStorage(storageKeys.journal, {});
+  const savedProfile = journal.calculatorProfile || readStorage('calorie-calculator-profile', null);
+  if (!savedProfile) return;
+  const sexInput = document.querySelector(`input[name="sex"][value="${savedProfile.sex}"]`);
+  const goalInput = document.querySelector(`input[name="goal"][value="${savedProfile.goal}"]`);
+  if (sexInput) sexInput.checked = true;
+  if (goalInput) goalInput.checked = true;
+  document.querySelector('#age').value = savedProfile.age || '';
+  document.querySelector('#weight').value = savedProfile.weight || '';
+  document.querySelector('#height').value = savedProfile.height || '';
+  document.querySelector('#activity').value = savedProfile.activity || '';
+  const error = validate(savedProfile);
+  if (!error) displayResults(calculateResults(savedProfile), false);
+}
 
 const foodForm = document.querySelector('#food-form');
 const foodError = document.querySelector('#food-error');
@@ -265,7 +284,7 @@ function renderMeals() {
 }
 
 function updateDashboardTotals(day) {
-  const totals = nutrientTotals(Object.values(day).flat());
+  const totals = nutrientTotals(Object.keys(mealLabels).flatMap((mealKey) => day[mealKey] || []));
   const goals = readStorage(storageKeys.goals, defaultGoals);
   const mappings = [['calories', 'dashboard-calories', 'dashboard-calorie-goal', 'calories-progress', ''], ['protein', 'dashboard-protein', 'dashboard-protein-goal', 'protein-progress', ' g'], ['carbs', 'dashboard-carbs', 'dashboard-carbs-goal', 'carbs-progress', ' g'], ['fats', 'dashboard-fats', 'dashboard-fats-goal', 'fats-progress', ' g'], ['fiber', 'dashboard-fiber', 'dashboard-fiber-goal', 'fiber-progress', ' g']];
   mappings.forEach(([key, valueId, goalId, progressId, suffix]) => {
@@ -406,7 +425,7 @@ document.querySelector('#goals-form').addEventListener('submit', (event) => { ev
 
 const savedGoals = readStorage(storageKeys.goals, defaultGoals);
 Object.entries(savedGoals).forEach(([key, value]) => { document.querySelector(`#goal-${key}`).value = value; });
-prepareMealForm(); renderFavorites(); renderMeals();
+prepareMealForm(); renderFavorites(); renderMeals(); restoreCalculatorProfile();
 
 const recipeStorageKey = 'calorie-calculator-recipes';
 let editingRecipeId = null;
@@ -654,7 +673,8 @@ document.querySelector('#recipe-form').addEventListener('submit', (event) => {
   if (recipeMealContext) {
     const total = recipeTotals(ingredients);
     const journal = getDayJournal();
-    Object.entries(journal[currentDate]).forEach(([mealKey, entries]) => {
+    Object.keys(mealLabels).forEach((mealKey) => {
+      const entries = journal[currentDate][mealKey] || [];
       journal[currentDate][mealKey] = entries.filter((entry) => entry.id !== editingMealEntryContext?.id);
     });
     const portions = editingMealEntryContext?.amount || 1;
@@ -701,6 +721,13 @@ function showPage(pageId) {
   pageLinks.forEach((link) => link.classList.toggle('active', link.dataset.page === page.id));
 }
 
+pageLinks.forEach((link) => link.addEventListener('click', (event) => {
+  event.preventDefault();
+  const pageId = link.dataset.page;
+  showPage(pageId);
+  if (window.location.hash !== `#${pageId}`) window.location.hash = pageId;
+}));
+
 function navigateToPage() {
   showPage(window.location.hash.slice(1) || 'dashboard-page');
 }
@@ -708,30 +735,42 @@ function navigateToPage() {
 window.addEventListener('hashchange', navigateToPage);
 navigateToPage();
 
-const authStorageKey = 'calorie-calculator-users';
-const sessionStorageKey = 'calorie-calculator-session';
+const supabaseConfig = window.SUPABASE_CONFIG || {};
+const supabaseClient = window.supabase && supabaseConfig.url && supabaseConfig.publishableKey
+  && !supabaseConfig.url.includes('PASTE_YOUR_') && !supabaseConfig.publishableKey.includes('PASTE_YOUR_')
+  ? window.supabase.createClient(supabaseConfig.url, supabaseConfig.publishableKey, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      storage: window.localStorage
+    }
+  })
+  : null;
 const authTabs = document.querySelectorAll('[data-auth-tab]');
 const authForms = document.querySelectorAll('[data-auth-form]');
 const accountStatus = document.querySelector('#account-status');
 
-function readUsers() { return readStorage(authStorageKey, []); }
+function setAuthError(id, message) { document.querySelector(id).textContent = message || ''; }
 
-function renderAccountState() {
-  const session = readStorage(sessionStorageKey, null);
-  if (!session) {
-    accountStatus.hidden = true;
-    return;
-  }
-  document.querySelector('#login-form').hidden = true;
-  document.querySelector('#register-form').hidden = true;
-  document.querySelector('.auth-tabs').hidden = true;
-  accountStatus.hidden = false;
-  accountStatus.innerHTML = `<strong>Salut, ${session.name}!</strong><br>Ești autentificat cu ${session.email}.<br><button class="reset-button" type="button" id="logout-button">Ieși din cont</button>`;
-  document.querySelector('#logout-button').addEventListener('click', () => {
-    localStorage.removeItem(sessionStorageKey);
-    window.location.hash = 'account-page';
-    window.location.reload();
-  });
+function setProtectedPagesVisible() {
+  document.querySelectorAll('.app-page, .mode-button[data-page]').forEach((item) => { item.hidden = false; });
+}
+
+function renderAccountState(session) {
+  const signedIn = Boolean(session);
+  setProtectedPagesVisible();
+  document.querySelector('#login-form').hidden = signedIn;
+  document.querySelector('#register-form').hidden = signedIn;
+  document.querySelector('#reset-form').hidden = signedIn;
+  document.querySelector('.auth-tabs').hidden = signedIn;
+  document.querySelector('.auth-reset-link').hidden = signedIn;
+  accountStatus.hidden = !signedIn;
+  if (!signedIn) return;
+  const name = session.user.user_metadata?.display_name || session.user.user_metadata?.name || session.user.email.split('@')[0];
+  accountStatus.innerHTML = `<strong>Salut, ${name}!</strong><br>Ești autentificat cu ${session.user.email}.<br><button class="reset-button" type="button" id="logout-button">Ieși din cont</button>`;
+  document.querySelector('#logout-button').addEventListener('click', async () => { await supabaseClient.auth.signOut(); });
+  if (window.location.hash === '#account-page') window.location.hash = 'dashboard-page';
 }
 
 authTabs.forEach((tab) => tab.addEventListener('click', () => {
@@ -739,30 +778,39 @@ authTabs.forEach((tab) => tab.addEventListener('click', () => {
   authForms.forEach((form) => form.classList.toggle('is-active', form.dataset.authForm === tab.dataset.authTab));
 }));
 
-document.querySelector('#register-form').addEventListener('submit', (event) => {
+document.querySelector('#register-form').addEventListener('submit', async (event) => {
   event.preventDefault();
+  if (!supabaseClient) { setAuthError('#register-error', 'Completează supabase-config.js cu URL-ul și cheia publică.'); return; }
   const name = document.querySelector('#register-name').value.trim();
   const email = document.querySelector('#register-email').value.trim().toLowerCase();
   const password = document.querySelector('#register-password').value;
-  const error = document.querySelector('#register-error');
-  const users = readUsers();
-  if (users.some((user) => user.email === email)) { error.textContent = 'Există deja un cont cu acest email.'; return; }
-  saveStorage(authStorageKey, [...users, { name, email, password }]);
-  saveStorage(sessionStorageKey, { name, email });
-  window.location.hash = 'account-page';
-  window.location.reload();
+  const confirmation = document.querySelector('#register-password-confirm').value;
+  if (password !== confirmation) { setAuthError('#register-error', 'Parolele nu coincid.'); return; }
+  const { error } = await supabaseClient.auth.signUp({ email, password, options: { data: { display_name: name } } });
+  setAuthError('#register-error', error?.message || 'Contul a fost creat. Verifică emailul pentru confirmare.');
 });
 
-document.querySelector('#login-form').addEventListener('submit', (event) => {
+document.querySelector('#login-form').addEventListener('submit', async (event) => {
   event.preventDefault();
+  if (!supabaseClient) { setAuthError('#login-error', 'Completează supabase-config.js cu URL-ul și cheia publică.'); return; }
   const email = document.querySelector('#login-email').value.trim().toLowerCase();
   const password = document.querySelector('#login-password').value;
-  const error = document.querySelector('#login-error');
-  const user = readUsers().find((item) => item.email === email && item.password === password);
-  if (!user) { error.textContent = 'Emailul sau parola nu sunt corecte.'; return; }
-  saveStorage(sessionStorageKey, { name: user.name, email: user.email });
-  window.location.hash = 'account-page';
-  window.location.reload();
+  const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+  setAuthError('#login-error', error?.message || '');
 });
 
-renderAccountState();
+document.querySelector('#reset-form').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  if (!supabaseClient) { setAuthError('#reset-error', 'Completează supabase-config.js cu URL-ul și cheia publică.'); return; }
+  const email = document.querySelector('#reset-email').value.trim().toLowerCase();
+  const redirectTo = `${window.location.origin}${window.location.pathname}#account-page`;
+  const { error } = await supabaseClient.auth.resetPasswordForEmail(email, { redirectTo });
+  setAuthError('#reset-error', error?.message || 'Ți-am trimis un link pentru resetarea parolei.');
+});
+
+if (supabaseClient) {
+  supabaseClient.auth.onAuthStateChange((_event, session) => renderAccountState(session));
+  supabaseClient.auth.getSession().then(({ data: { session } }) => renderAccountState(session));
+} else {
+  renderAccountState(null);
+}
