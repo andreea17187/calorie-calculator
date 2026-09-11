@@ -586,6 +586,8 @@ Object.entries(savedGoals).forEach(([key, value]) => { document.querySelector(`#
 prepareMealForm(); renderFavorites(); renderMeals(); restoreCalculatorProfile();
 
 const recipeStorageKey = 'calorie-calculator-recipes';
+const recipeFoldersStorageKey = 'calorie-calculator-recipe-folders';
+let activeRecipeFolder = '';
 let editingRecipeId = null;
 let recipeMealContext = null;
 let editingMealEntryContext = null;
@@ -594,6 +596,56 @@ let selectedCurrentPreparationDate = null;
 let selectedCurrentPreparationTotalGrams = null;
 let ingredientCounter = 0;
 let activeRecipeServings = 1;
+
+function recipeFolders() { return readStorage(recipeFoldersStorageKey, []); }
+
+function ensureRecipeFolderField() {
+  let field = document.querySelector('#recipe-folder')?.closest('.recipe-folder-field');
+  if (field) return field;
+  field = document.createElement('label');
+  field.className = 'field recipe-folder-field';
+  field.innerHTML = '<span>Folder</span><select id="recipe-folder"><option value="">Fără folder</option></select>';
+  document.querySelector('#recipe-name').closest('.field').insertAdjacentElement('afterend', field);
+  return field;
+}
+
+function renderRecipeFolderSelect(selected = '') {
+  const select = ensureRecipeFolderField().querySelector('#recipe-folder');
+  select.innerHTML = `<option value="">Fără folder</option>${recipeFolders().map((folder) => `<option value="${folder.id}">${folder.name}</option>`).join('')}`;
+  select.value = selected || '';
+}
+
+function renderRecipeFolderTabs() {
+  const target = document.querySelector('#recipe-folder-tabs');
+  if (!target) return;
+  const folders = recipeFolders();
+  target.innerHTML = `<button type="button" class="recipe-folder-tab ${activeRecipeFolder === '' ? 'is-active' : ''}" data-recipe-folder="">Toate</button><button type="button" class="recipe-folder-tab ${activeRecipeFolder === '__none__' ? 'is-active' : ''}" data-recipe-folder="__none__">Fără folder</button>${folders.map((folder) => `<span class="recipe-folder-item"><button type="button" class="recipe-folder-tab ${activeRecipeFolder === folder.id ? 'is-active' : ''}" data-recipe-folder="${folder.id}">${folder.name}</button><button type="button" class="recipe-folder-action" data-rename-folder="${folder.id}" aria-label="Redenumește folderul" title="Redenumește folderul">✎</button><button type="button" class="recipe-folder-action recipe-folder-delete" data-delete-folder="${folder.id}" aria-label="Șterge folderul" title="Șterge folderul">×</button></span>`).join('')}`;
+}
+
+function showRecipeFolderForm(folder = null) {
+  document.querySelector('#recipe-folder-create')?.remove();
+  const form = document.createElement('form');
+  form.id = 'recipe-folder-create';
+  form.className = 'recipe-folder-create';
+  form.innerHTML = `<input type="text" placeholder="Nume folder" aria-label="Nume folder" value="${folder?.name || ''}" required><button class="secondary-button" type="submit">Salvează</button><button class="reset-button" type="button">Anulează</button>`;
+  document.querySelector('.recipe-library-toolbar').appendChild(form);
+  form.querySelector('input').focus();
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const name = form.querySelector('input').value.trim();
+    if (!name) return;
+    const folders = recipeFolders();
+    if (folders.some((item) => item.id !== folder?.id && item.name.toLocaleLowerCase('ro') === name.toLocaleLowerCase('ro'))) return;
+    if (folder) folder.name = name;
+    else folders.push({ id: `folder-${Date.now()}`, name });
+    saveStorage(recipeFoldersStorageKey, folders);
+    form.remove();
+    renderRecipeFolderTabs();
+    renderRecipeFolderSelect();
+    renderSavedRecipeOptions();
+  });
+  form.querySelector('.reset-button').addEventListener('click', () => form.remove());
+}
 
 const recipeServingsInput = document.querySelector('#recipe-servings');
 if (recipeServingsInput) {
@@ -611,7 +663,7 @@ if (recipeServingsInput) {
   recipeServingsInput.closest('.field').insertAdjacentElement('beforebegin', gramsToggle);
   const consumedLabel = document.createElement('label');
   consumedLabel.className = 'field consumed-grams-field';
-  consumedLabel.innerHTML = '<span>Cantitate consumată (g)</span><input id="recipe-consumed-grams" type="number" min="1" max="100000" step="1" value=""><small class="unit-hint">Cât ai mâncat la această masă</small>';
+  consumedLabel.innerHTML = '<span>Cantitate consumată (g)</span><input id="recipe-consumed-grams" type="number" min="1" max="100000" step="1" value=""><div class="quick-portion-buttons" role="group" aria-label="Alege o parte din preparat"><button type="button" class="quick-portion-button" data-portion="0.5">1/2</button><button type="button" class="quick-portion-button" data-portion="0.25">1/4</button></div><small class="unit-hint">Cât ai mâncat la această masă</small>';
   consumedLabel.hidden = true;
   recipeServingsInput.closest('.field').insertAdjacentElement('afterend', consumedLabel);
   recipeServingsInput.closest('.field').hidden = true;
@@ -624,6 +676,12 @@ if (recipeServingsInput) {
     updateRecipePreview();
   };
   gramsToggle.querySelector('input').addEventListener('change', toggleGramsFields);
+  consumedLabel.querySelectorAll('[data-portion]').forEach((button) => button.addEventListener('click', () => {
+    const totalGrams = Number(document.querySelector('#recipe-total-grams').value);
+    if (!totalGrams || totalGrams < 1) return;
+    document.querySelector('#recipe-consumed-grams').value = Math.max(1, Math.round(totalGrams * Number(button.dataset.portion)));
+    updateRecipePreview();
+  }));
   document.querySelector('.per-serving > span')?.replaceChildren('Cantitatea consumată');
 }
 document.querySelector('#recipe-name').required = false;
@@ -691,13 +749,24 @@ function renderSavedRecipeOptions() {
   const select = document.querySelector('#saved-recipe-select');
   if (!select) return;
   const recipes = readStorage(recipeStorageKey, []);
-  select.innerHTML = `<option value="">Alege o rețetă salvată...</option>${recipes.map((recipe) => `<option value="${recipe.id}">${recipe.name} · ${recipe.ingredients.length} ingrediente</option>`).join('')}`;
+  const folders = recipeFolders();
+  const option = (recipe) => `<option value="${recipe.id}">${recipe.name} · ${recipe.ingredients.length} ingrediente</option>`;
+  const unfiled = recipes.filter((recipe) => !recipe.folderId);
+  const groups = folders.map((folder) => {
+    const folderRecipes = recipes.filter((recipe) => recipe.folderId === folder.id);
+    return folderRecipes.length ? `<optgroup label="${folder.name}">${folderRecipes.map(option).join('')}</optgroup>` : '';
+  }).join('');
+  select.innerHTML = `<option value="">Alege o rețetă salvată...</option>${unfiled.length ? `<optgroup label="Fără folder">${unfiled.map(option).join('')}</optgroup>` : ''}${groups}`;
 }
 
 function renderRecipes() {
   const recipes = readStorage(recipeStorageKey, []);
   const query = document.querySelector('#recipe-search').value.trim().toLocaleLowerCase('ro');
-  const filtered = recipes.filter((recipe) => recipe.name.toLocaleLowerCase('ro').includes(query));
+  const filtered = recipes.filter((recipe) => {
+    const matchesFolder = activeRecipeFolder === '' || (activeRecipeFolder === '__none__' ? !recipe.folderId : recipe.folderId === activeRecipeFolder);
+    return matchesFolder && recipe.name.toLocaleLowerCase('ro').includes(query);
+  });
+  renderRecipeFolderTabs();
   document.querySelector('#recipe-count').textContent = `${filtered.length} ${filtered.length === 1 ? 'rețetă' : 'rețete'}`;
   document.querySelector('#recipes-list').innerHTML = filtered.length ? filtered.map((recipe) => {
     const total = recipeTotals(recipe.ingredients);
@@ -842,6 +911,7 @@ function openRecipeModal(recipe = null, mealType = null, mealEntry = null, curre
   selectedCurrentPreparationTotalGrams = currentPreparation ? Number(currentPreparation.totalGrams) : null;
   activeRecipeServings = recipe?.servings || 1;
   document.querySelector('#recipe-modal').hidden = false;
+  renderRecipeFolderSelect(recipe?.folderId || '');
   const picker = ensureMealRecipePicker();
   picker.hidden = !mealType;
   renderSavedRecipeOptions();
@@ -1049,6 +1119,35 @@ document.querySelector('#save-custom-food').addEventListener('click', () => {
 });
 
 document.querySelector('[data-open-recipe]').addEventListener('click', () => openRecipeModal());
+document.querySelector('#add-recipe-folder').addEventListener('click', () => {
+  if (document.querySelector('#recipe-folder-create')) return;
+  showRecipeFolderForm();
+});
+document.querySelector('#recipe-folder-tabs').addEventListener('click', (event) => {
+  const rename = event.target.closest('[data-rename-folder]');
+  if (rename) {
+    const folder = recipeFolders().find((item) => item.id === rename.dataset.renameFolder);
+    if (folder) showRecipeFolderForm(folder);
+    return;
+  }
+  const remove = event.target.closest('[data-delete-folder]');
+  if (remove) {
+    const folder = recipeFolders().find((item) => item.id === remove.dataset.deleteFolder);
+    if (!folder || !window.confirm(`Ștergi folderul „${folder.name}”? Rețetele vor rămâne în „Fără folder”.`)) return;
+    saveStorage(recipeFoldersStorageKey, recipeFolders().filter((item) => item.id !== folder.id));
+    const recipes = readStorage(recipeStorageKey, []).map((recipe) => recipe.folderId === folder.id ? { ...recipe, folderId: '' } : recipe);
+    saveStorage(recipeStorageKey, recipes);
+    if (activeRecipeFolder === folder.id) activeRecipeFolder = '';
+    renderRecipeFolderTabs();
+    renderRecipeFolderSelect();
+    renderRecipes();
+    return;
+  }
+  const tab = event.target.closest('[data-recipe-folder]');
+  if (!tab) return;
+  activeRecipeFolder = tab.dataset.recipeFolder;
+  renderRecipes();
+});
 document.querySelectorAll('[data-close-recipe]').forEach((button) => button.addEventListener('click', closeRecipeModal));
 document.querySelector('#add-ingredient').addEventListener('click', () => addIngredientRow());
 document.querySelector('#recipe-total-grams').addEventListener('input', updateRecipePreview);
@@ -1066,6 +1165,7 @@ document.querySelector('#recipe-form').addEventListener('submit', (event) => {
   const recipes = readStorage(recipeStorageKey, []);
   const previous = recipes.find((recipe) => recipe.id === editingRecipeId);
   const recipe = name && !recipeMealContext ? { id: editingRecipeId || `${Date.now()}-${Math.random()}`, name, ingredients, servings: previous?.servings || 1, totalGrams: gramsEnabled ? totalGrams : null, consumedGrams: gramsEnabled ? consumedGrams : null, favorite: previous?.favorite || false } : null;
+  if (recipe) recipe.folderId = document.querySelector('#recipe-folder')?.value || '';
   if (recipe) saveStorage(recipeStorageKey, editingRecipeId ? recipes.map((item) => item.id === editingRecipeId ? recipe : item) : [...recipes, recipe]);
   if (recipeMealContext) {
     const total = recipeTotals(ingredients);
