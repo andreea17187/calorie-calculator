@@ -417,6 +417,7 @@ footer { display: flex; justify-content: space-between; padding: 38px 7.5% 30px;
 
 .food-library-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: stretch; justify-content: flex-start; gap: 8px; }
 .food-library-actions .secondary-button, .food-library-actions .food-library-delete { flex: 1 1 150px; width: auto; min-height: 42px; margin: 0; }
+.food-library-actions .food-library-delete { display: inline-flex; align-items: center; justify-content: center; visibility: visible; opacity: 1; }
 .recipe-card-actions { display: flex; align-items: stretch; gap: 7px; }
 .recipe-card-actions select, .recipe-card-actions input, .recipe-card-actions button { min-height: 44px; height: 44px; border: 1px solid var(--green); border-radius: 7px; background: white; color: var(--green); }
 .recipe-card-actions select, .recipe-card-actions input { flex: 1 1 120px; min-width: 0; padding: 0 10px; }
