@@ -198,6 +198,10 @@ footer { display: flex; justify-content: space-between; padding: 38px 7.5% 30px;
 .recipe-form > .field:first-child { grid-column: 1; }
 .recipe-form .recipe-folder-field { grid-column: 2; }
 @media (max-width: 600px) { .recipe-form > .field:first-child, .recipe-form .recipe-folder-field { grid-column: 1 / -1; } }
+.recipe-form > .field:first-child { min-width: 0; }
+.recipe-form .recipe-name-field { grid-column: 1; min-width: 0; }
+@media (max-width: 600px) { .recipe-form .recipe-name-field { width: 100%; grid-column: 1 / -1; } .recipe-form .recipe-name-field input { width: 100%; } }
+@media (max-width: 600px) { .recipe-form > .field:first-child, .recipe-form .recipe-folder-field { width: 100%; grid-column: 1 / -1; } .recipe-form > .field:first-child input, .recipe-form .recipe-folder-field select { width: 100%; } }
 .recipe-form > .field:first-child { padding-bottom: 5px; border-bottom: 1px solid var(--line); }
 .recipe-form > .field:first-child input { height: 48px; padding: 0 13px; border: 1px solid var(--line); border-radius: 8px; outline: 0; background: #fbfcfb; color: var(--ink); font-size: 13px; }
 .recipe-form > .field:first-child input:focus, .ingredient-row input:focus, .ingredient-row select:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(37,91,77,.08); outline: 0; }

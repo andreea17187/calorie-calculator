@@ -8,6 +8,7 @@ const userScopedStorageKeys = new Set([
   'calorie-calculator-favorites',
   'calorie-calculator-goals',
   'calorie-calculator-recipes',
+  'calorie-calculator-recipe-folders',
   'calorie-calculator-custom-foods',
   'calorie-calculator-deleted-foods'
 ]);
@@ -24,6 +25,7 @@ function getStorageKey(key) {
   }
 }
 document.querySelector('#recipe-name').placeholder = 'Denumire mâncare';
+document.querySelector('#recipe-name').closest('.field')?.classList.add('recipe-name-field');
 
 const formatNumber = (value) => new Intl.NumberFormat('ro-RO').format(Math.round(value));
 
@@ -639,6 +641,7 @@ function showRecipeFolderForm(folder = null) {
     if (folder) folder.name = name;
     else folders.push({ id: `folder-${Date.now()}`, name });
     saveStorage(recipeFoldersStorageKey, folders);
+    syncRecipeFoldersToSupabase();
     form.remove();
     renderRecipeFolderTabs();
     renderRecipeFolderSelect();
@@ -1138,6 +1141,7 @@ document.querySelector('#recipe-folder-tabs').addEventListener('click', (event) 
     const recipes = readStorage(recipeStorageKey, []).map((recipe) => recipe.folderId === folder.id ? { ...recipe, folderId: '' } : recipe);
     saveStorage(recipeStorageKey, recipes);
     if (activeRecipeFolder === folder.id) activeRecipeFolder = '';
+    syncRecipeFoldersToSupabase();
     renderRecipeFolderTabs();
     renderRecipeFolderSelect();
     renderRecipes();
@@ -1276,7 +1280,7 @@ const authTabs = document.querySelectorAll('[data-auth-tab]');
 const authForms = document.querySelectorAll('[data-auth-form]');
 const accountStatus = document.querySelector('#account-status');
 let activeSupabaseSession = null;
-const synchronizedStorageKeys = ['calorie-calculator-journal', 'calorie-calculator-favorites', 'calorie-calculator-goals', 'calorie-calculator-recipes', 'calorie-calculator-custom-foods', 'calorie-calculator-deleted-foods'];
+const synchronizedStorageKeys = ['calorie-calculator-journal', 'calorie-calculator-favorites', 'calorie-calculator-goals', 'calorie-calculator-recipes', 'calorie-calculator-recipe-folders', 'calorie-calculator-custom-foods', 'calorie-calculator-deleted-foods'];
 let supabaseSyncTimer = null;
 
 function localAppDataSnapshot() {
@@ -1287,6 +1291,41 @@ function localAppDataSnapshot() {
       return [key, JSON.parse(scopedValue ?? legacyValue ?? 'null')];
     } catch { return [key, null]; }
   }));
+}
+
+function migrateLegacyAccountData() {
+  synchronizedStorageKeys.forEach((key) => {
+    const scopedKey = getStorageKey(key);
+    if (scopedKey === key || localStorage.getItem(scopedKey) !== null) return;
+    const legacyValue = localStorage.getItem(key);
+    if (legacyValue !== null) localStorage.setItem(scopedKey, legacyValue);
+  });
+}
+
+function mergeRecipeFolders(localFolders, cloudFolders) {
+  const merged = [...(Array.isArray(cloudFolders) ? cloudFolders : [])];
+  (Array.isArray(localFolders) ? localFolders : []).forEach((folder) => {
+    if (!merged.some((item) => item.id === folder.id || item.name.toLocaleLowerCase('ro') === folder.name.toLocaleLowerCase('ro'))) merged.push(folder);
+  });
+  return merged;
+}
+
+async function syncRecipeFoldersToSupabase() {
+  const session = window.__activeSupabaseSession;
+  const client = window.__supabaseClient;
+  if (!client || !session?.user) return;
+  const localFolders = readStorage(recipeFoldersStorageKey, []);
+  const { data: profile } = await client.from('profiles').select('settings').eq('id', session.user.id).maybeSingle();
+  const settings = profile?.settings || {};
+  const cloudData = settings.calorieCalculatorData || {};
+  const folders = mergeRecipeFolders(localFolders, cloudData[recipeFoldersStorageKey]);
+  localStorage.setItem(getStorageKey(recipeFoldersStorageKey), JSON.stringify(folders));
+  const nextData = { ...cloudData, [recipeFoldersStorageKey]: folders };
+  const { error } = await client.from('profiles').upsert({ id: session.user.id, settings: { ...settings, calorieCalculatorData: nextData } }, { onConflict: 'id' });
+  if (error) console.error('Nu am putut sincroniza folderele rețetelor.', error);
+  renderRecipeFolderTabs();
+  renderRecipeFolderSelect();
+  renderSavedRecipeOptions();
 }
 
 async function syncAppDataToSupabase() {
@@ -1310,21 +1349,31 @@ function queueSupabaseSync(key) {
 
 async function restoreAppDataFromSupabase(session) {
   if (!supabaseClient || !session?.user) return;
+  migrateLegacyAccountData();
   const { data: profile } = await supabaseClient.from('profiles').select('settings').eq('id', session.user.id).maybeSingle();
   const cloudData = profile?.settings?.calorieCalculatorData;
   if (cloudData) {
+    const cloudHasRecipeFolders = Object.prototype.hasOwnProperty.call(cloudData, 'calorie-calculator-recipe-folders');
+    const localFolders = readStorage(recipeFoldersStorageKey, []);
+    const mergedFolders = mergeRecipeFolders(localFolders, cloudData['calorie-calculator-recipe-folders']);
     synchronizedStorageKeys.forEach((key) => {
       if (cloudData[key] !== null && cloudData[key] !== undefined) localStorage.setItem(getStorageKey(key), JSON.stringify(cloudData[key]));
     });
+    if (mergedFolders.length) localStorage.setItem(getStorageKey(recipeFoldersStorageKey), JSON.stringify(mergedFolders));
     Object.assign(foodDatabase, cloudData['calorie-calculator-custom-foods'] || {});
     Object.keys(cloudData['calorie-calculator-deleted-foods'] || {}).forEach((key) => { delete foodDatabase[key]; });
     prepareMealForm();
     renderFavorites();
     renderMeals();
     renderRecipes();
+    renderRecipeFolderTabs();
+    renderRecipeFolderSelect();
+    renderSavedRecipeOptions();
     renderFoodLibrary();
     const savedGoals = readStorage(storageKeys.goals, defaultGoals);
     Object.entries(savedGoals).forEach(([key, value]) => { document.querySelector(`#goal-${key}`).value = value; });
+    await syncRecipeFoldersToSupabase();
+    if (!cloudHasRecipeFolders) await syncAppDataToSupabase();
   } else {
     await syncAppDataToSupabase();
   }
@@ -1376,6 +1425,7 @@ function renderAccountState(session) {
   document.querySelector('.auth-reset-link').hidden = signedIn;
   accountStatus.hidden = !signedIn;
   if (!signedIn) return;
+  migrateLegacyAccountData();
   const name = session.user.user_metadata?.display_name || session.user.user_metadata?.name || session.user.email.split('@')[0];
   accountStatus.innerHTML = `<strong>Salut, ${name}!</strong><br>Ești autentificat cu ${session.user.email}.<br><button class="reset-button" type="button" id="logout-button">Ieși din cont</button>`;
   document.querySelector('#logout-button').addEventListener('click', async () => { await supabaseClient.auth.signOut(); });
