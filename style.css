@@ -381,6 +381,12 @@ footer { display: flex; justify-content: space-between; padding: 38px 7.5% 30px;
 .recipe-form .total-grams-field[hidden], .recipe-form .consumed-grams-field[hidden] { display: none !important; }
 .favorite-toggle { width: 28px !important; min-width: 28px; height: 28px; display: grid; place-items: center; padding: 0 !important; border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--orange); font-size: 14px; line-height: 1; }
 .food-entry-name { text-align: center; }
+.meal-recipe-picker { margin-bottom: 2px; }
+.meal-recipe-picker .field { margin: 0; }
+.meal-recipe-results { display: grid; gap: 4px; margin-top: 6px; max-height: 150px; overflow-y: auto; }
+.meal-recipe-result { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; min-height: 38px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 7px; background: #f8fbf8; color: var(--ink); font-size: 11px; text-align: left; }
+.meal-recipe-result:hover { border-color: var(--green); background: var(--mint); }
+.meal-recipe-result small { color: var(--muted); font-size: 9px; }
 @media (max-width: 600px), (hover: none) and (pointer: coarse) {
   .food-entry { grid-template-columns: 28px minmax(0, 1fr) auto; }
 }

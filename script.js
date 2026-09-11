@@ -199,6 +199,43 @@ const foodDatabase = {
   ,jamPlum: { name: 'Gem de prune', calories: 240, protein: 0.5, carbs: 61, fats: 0.1, fiber: 1.3, units: { tablespoon: 20, teaspoon: 7 } }
   ,apricotPreserve: { name: 'Dulceață de caise', calories: 250, protein: 0.4, carbs: 64, fats: 0.1, fiber: 1, units: { tablespoon: 20, teaspoon: 7 } }
   ,cherryPreserve: { name: 'Dulceață de vișine', calories: 255, protein: 0.4, carbs: 65, fats: 0.1, fiber: 1, units: { tablespoon: 20, teaspoon: 7 } }
+  ,lightMozzarella: { name: 'Mozzarella light', calories: 173, protein: 24, carbs: 3, fats: 7, fiber: 0, units: {} }
+  ,cheese: { name: 'Cașcaval', calories: 356, protein: 25, carbs: 1.5, fats: 28, fiber: 0, units: { slice: 20 } }
+  ,slicedCheese: { name: 'Cașcaval feliat', calories: 350, protein: 24, carbs: 2, fats: 28, fiber: 0, units: { slice: 20 } }
+  ,cheddar: { name: 'Brânză cheddar', calories: 403, protein: 25, carbs: 1.3, fats: 33, fiber: 0, units: { slice: 20 } }
+  ,gouda: { name: 'Brânză gouda', calories: 356, protein: 25, carbs: 2.2, fats: 27, fiber: 0, units: { slice: 20 } }
+  ,ricotta: { name: 'Ricotta', calories: 174, protein: 11.3, carbs: 3, fats: 13, fiber: 0, units: { tablespoon: 15 } }
+  ,creamCheese: { name: 'Cremă de brânză', calories: 342, protein: 6, carbs: 4.1, fats: 34, fiber: 0, units: { tablespoon: 15 } }
+  ,telemea: { name: 'Telemea', calories: 265, protein: 17, carbs: 2, fats: 21, fiber: 0, units: {} }
+  ,halloumi: { name: 'Halloumi', calories: 321, protein: 22, carbs: 2.4, fats: 25, fiber: 0, units: {} }
+  ,wholemealFlatbread: { name: 'Lipie integrală', calories: 270, protein: 9, carbs: 52, fats: 3.5, fiber: 6, units: { piece: 60 } }
+  ,flatbread: { name: 'Lipie normală', calories: 275, protein: 9, carbs: 56, fats: 1.2, fiber: 2.5, units: { piece: 60 } }
+  ,tomatoPaste: { name: 'Bulion', calories: 38, protein: 1.7, carbs: 7.3, fats: 0.3, fiber: 1.5, units: { tablespoon: 16, teaspoon: 5 } }
+  ,groundChickenBreast: { name: 'Carne tocată din piept de pui', calories: 143, protein: 27, carbs: 0, fats: 3.1, fiber: 0, units: {} }
+  ,groundBeef: { name: 'Carne tocată de vită', calories: 254, protein: 26, carbs: 0, fats: 17, fiber: 0, units: {} }
+  ,groundTurkey: { name: 'Carne tocată de curcan', calories: 176, protein: 20, carbs: 0, fats: 10, fiber: 0, units: {} }
+  ,porkTenderloin: { name: 'Mușchiuleț de porc', calories: 143, protein: 26, carbs: 0, fats: 4, fiber: 0, units: {} }
+  ,porkShoulder: { name: 'Carne de porc', calories: 242, protein: 27, carbs: 0, fats: 14, fiber: 0, units: {} }
+  ,beefSteak: { name: 'Carne de vită slabă', calories: 217, protein: 26, carbs: 0, fats: 12, fiber: 0, units: {} }
+  ,chickenThigh: { name: 'Pulpe de pui fără piele', calories: 177, protein: 24, carbs: 0, fats: 8, fiber: 0, units: {} }
+  ,flour: { name: 'Făină albă', calories: 364, protein: 10.3, carbs: 76.3, fats: 1, fiber: 2.7, units: { tablespoon: 8, teaspoon: 3 } }
+  ,wholemealFlour: { name: 'Făină integrală', calories: 340, protein: 13.7, carbs: 72, fats: 2.5, fiber: 10.7, units: { tablespoon: 8, teaspoon: 3 } }
+  ,semolina: { name: 'Griș', calories: 360, protein: 12.7, carbs: 72.8, fats: 1.1, fiber: 3.9, units: { tablespoon: 12, teaspoon: 4 } }
+  ,sugar: { name: 'Zahăr', calories: 387, protein: 0, carbs: 100, fats: 0, fiber: 0, units: { tablespoon: 12, teaspoon: 4 } }
+  ,bakingPowder: { name: 'Praf de copt', calories: 53, protein: 0, carbs: 27.7, fats: 0, fiber: 0, units: { teaspoon: 4 } }
+  ,vanillaSugar: { name: 'Zahăr vanilinat', calories: 387, protein: 0, carbs: 100, fats: 0, fiber: 0, units: { sachet: 8, teaspoon: 4 } }
+  ,gelatin: { name: 'Gelatină', calories: 335, protein: 85.6, carbs: 0, fats: 0.1, fiber: 0, units: { sachet: 10, tablespoon: 9 } }
+  ,starch: { name: 'Amidon', calories: 381, protein: 0.3, carbs: 91.3, fats: 0.1, fiber: 0.9, units: { tablespoon: 8, teaspoon: 3 } }
+  ,cornstarch: { name: 'Amidon de porumb', calories: 381, protein: 0.3, carbs: 91.3, fats: 0.1, fiber: 0.9, units: { tablespoon: 8, teaspoon: 3 } }
+  ,salt: { name: 'Sare', calories: 0, protein: 0, carbs: 0, fats: 0, fiber: 0, units: { teaspoon: 6 } }
+  ,blackPepper: { name: 'Piper negru', calories: 251, protein: 10.4, carbs: 63.9, fats: 3.3, fiber: 25.3, units: { teaspoon: 2.3 } }
+  ,paprika: { name: 'Boia de ardei', calories: 282, protein: 14.1, carbs: 54, fats: 12.9, fiber: 34.9, units: { teaspoon: 2.3 } }
+  ,garlicPowder: { name: 'Usturoi granulat', calories: 331, protein: 16.6, carbs: 72.7, fats: 0.7, fiber: 9, units: { teaspoon: 3.1 } }
+  ,vanillaExtract: { name: 'Esență de vanilie', calories: 288, protein: 0.1, carbs: 12.7, fats: 0.1, fiber: 0, units: { teaspoon: 5 } }
+  ,rumExtract: { name: 'Esență de rom', calories: 280, protein: 0, carbs: 0, fats: 0, fiber: 0, units: { teaspoon: 5 } }
+  ,cinnamon: { name: 'Scorțișoară', calories: 247, protein: 4, carbs: 80.6, fats: 1.2, fiber: 53.1, units: { teaspoon: 2.6 } }
+  ,butter: { name: 'Unt', calories: 717, protein: 0.9, carbs: 0.1, fats: 81.1, fiber: 0, units: { tablespoon: 14, teaspoon: 5 } }
+  ,margarine: { name: 'Margarină', calories: 717, protein: 0.2, carbs: 0.7, fats: 80, fiber: 0, units: { tablespoon: 14, teaspoon: 5 } }
 };
 
 const recommendationFoods = {
@@ -271,7 +308,7 @@ function scaledNutrients(foodKey, amount, unit = 'gram') {
 
 function displayValue(value, suffix = '') { return `${formatDecimal(value)}${suffix}`; }
 function displayQuantity(entry) {
-  const labels = { gram: 'g', liter: entry.amount === 1 ? 'litru' : 'litri', piece: entry.amount === 1 ? 'bucată' : 'bucăți', tablespoon: entry.amount === 1 ? 'lingură' : 'linguri', teaspoon: entry.amount === 1 ? 'linguriță' : 'lingurițe', glass: entry.amount === 1 ? 'pahar' : 'pahare' };
+  const labels = { gram: 'g', liter: entry.amount === 1 ? 'litru' : 'litri', piece: entry.amount === 1 ? 'bucată' : 'bucăți', slice: entry.amount === 1 ? 'felie' : 'felii', sachet: entry.amount === 1 ? 'plic' : 'plicuri', tablespoon: entry.amount === 1 ? 'lingură' : 'linguri', teaspoon: entry.amount === 1 ? 'linguriță' : 'lingurițe', glass: entry.amount === 1 ? 'pahar' : 'pahare' };
   return `${formatDecimal(entry.amount)} ${labels[entry.unit || 'gram']}`;
 }
 
@@ -537,6 +574,7 @@ let editingRecipeId = null;
 let recipeMealContext = null;
 let editingMealEntryContext = null;
 let ingredientCounter = 0;
+let activeRecipeServings = 1;
 
 const recipeServingsInput = document.querySelector('#recipe-servings');
 if (recipeServingsInput) {
@@ -576,6 +614,35 @@ function recipeIngredientGrams(ingredients) { return ingredients.reduce((total, 
 
 function recipeEntryName(entry) { return entry.isRecipe ? entry.recipeName : foodDatabase[entry.food]?.name || entry.food; }
 
+function ensureMealRecipePicker() {
+  let picker = document.querySelector('#meal-recipe-picker');
+  if (picker) return picker;
+  picker = document.createElement('div');
+  picker.id = 'meal-recipe-picker';
+  picker.className = 'meal-recipe-picker';
+  picker.innerHTML = '<label class="field"><span>Rețetă salvată (opțional)</span><input id="meal-recipe-search" type="search" placeholder="Caută o rețetă..."><div id="meal-recipe-results" class="meal-recipe-results"></div></label>';
+  document.querySelector('#recipe-name').closest('.field').insertAdjacentElement('beforebegin', picker);
+  const input = picker.querySelector('#meal-recipe-search');
+  const results = picker.querySelector('#meal-recipe-results');
+  const renderMatches = () => {
+    const query = input.value.trim().toLocaleLowerCase('ro');
+    const recipes = readStorage(recipeStorageKey, []).filter((recipe) => !query || recipe.name.toLocaleLowerCase('ro').includes(query));
+    results.innerHTML = recipes.length ? recipes.map((recipe) => `<button type="button" class="meal-recipe-result" data-recipe-id="${recipe.id}">${recipe.name}<small>${recipe.ingredients.length} ingrediente</small></button>`).join('') : '<small class="unit-hint">Nu am găsit rețete salvate.</small>';
+    results.querySelectorAll('[data-recipe-id]').forEach((button) => button.addEventListener('click', () => {
+      const recipe = readStorage(recipeStorageKey, []).find((item) => item.id === button.dataset.recipeId);
+      if (recipe) openRecipeModal(recipe, recipeMealContext);
+    }));
+  };
+  input.addEventListener('input', renderMatches);
+  input.addEventListener('focus', renderMatches);
+  document.querySelector('#recipe-name').addEventListener('input', () => {
+    if (!recipeMealContext) return;
+    input.value = document.querySelector('#recipe-name').value;
+    renderMatches();
+  });
+  return picker;
+}
+
 function renderRecipes() {
   const recipes = readStorage(recipeStorageKey, []);
   const query = document.querySelector('#recipe-search').value.trim().toLocaleLowerCase('ro');
@@ -590,7 +657,7 @@ function renderRecipes() {
 
 function ingredientUnitOptions(foodKey, selected = 'gram') {
   const food = foodDatabase[foodKey];
-  const labels = { gram: 'g', liter: 'litri', piece: 'bucată / cantitate', tablespoon: 'lingură', teaspoon: 'linguriță', glass: 'pahar' };
+  const labels = { gram: 'g', liter: 'litri', piece: 'bucată / cantitate', slice: 'felie', sachet: 'plic', tablespoon: 'lingură', teaspoon: 'linguriță', glass: 'pahar' };
   const availableUnits = foodKey ? Object.keys(food?.units || {}) : ['piece'];
   return ['gram', ...availableUnits].map((unit) => `<option value="${unit}" ${unit === selected ? 'selected' : ''}>${labels[unit]}</option>`).join('');
 }
@@ -716,10 +783,14 @@ function updateRecipePreview() {
 }
 
 function openRecipeModal(recipe = null, mealType = null, mealEntry = null) {
-  editingRecipeId = recipe?.id || null;
+  editingRecipeId = recipe?.id && !mealType ? recipe.id : null;
   recipeMealContext = mealType;
   editingMealEntryContext = mealEntry;
+  activeRecipeServings = recipe?.servings || 1;
   document.querySelector('#recipe-modal').hidden = false;
+  const picker = ensureMealRecipePicker();
+  picker.hidden = !mealType;
+  if (mealType) picker.querySelector('#meal-recipe-search').value = recipe?.name || '';
   document.querySelector('#recipe-modal-title').textContent = recipe ? 'Editează masa' : mealType ? `Adaugă masă · ${mealLabels[mealType]}` : 'Rețetă nouă';
   document.querySelector('#recipe-name').value = recipe?.name || '';
   document.querySelector('#custom-food-panel').hidden = true;
@@ -863,7 +934,7 @@ document.querySelector('#recipe-form').addEventListener('submit', (event) => {
   if ((!name && !recipeMealContext) || !ingredients.length || unresolved || (gramsEnabled && (!totalGrams || !consumedGrams || totalGrams < 1 || consumedGrams < 1 || consumedGrams > totalGrams))) { document.querySelector('#recipe-error').textContent = unresolved ? 'Alimentele noi trebuie salvate cu valorile lor nutriționale înainte de a continua.' : !name && !recipeMealContext ? 'Introdu un nume pentru a salva rețeta.' : 'Introdu cantitatea totală și cantitatea consumată. Cantitatea consumată nu poate depăși totalul.'; return; }
   const recipes = readStorage(recipeStorageKey, []);
   const previous = recipes.find((recipe) => recipe.id === editingRecipeId);
-  const recipe = name ? { id: editingRecipeId || `${Date.now()}-${Math.random()}`, name, ingredients, servings: previous?.servings || 1, totalGrams: gramsEnabled ? totalGrams : null, consumedGrams: gramsEnabled ? consumedGrams : null, favorite: previous?.favorite || false } : null;
+  const recipe = name && !recipeMealContext ? { id: editingRecipeId || `${Date.now()}-${Math.random()}`, name, ingredients, servings: previous?.servings || 1, totalGrams: gramsEnabled ? totalGrams : null, consumedGrams: gramsEnabled ? consumedGrams : null, favorite: previous?.favorite || false } : null;
   if (recipe) saveStorage(recipeStorageKey, editingRecipeId ? recipes.map((item) => item.id === editingRecipeId ? recipe : item) : [...recipes, recipe]);
   if (recipeMealContext) {
     const total = recipeTotals(ingredients);
@@ -875,7 +946,7 @@ document.querySelector('#recipe-form').addEventListener('submit', (event) => {
     const portions = gramsEnabled ? consumedGrams / totalGrams : 1;
     const portionPercent = portions * 100;
     const fallbackName = ingredients.map((ingredient) => foodDatabase[ingredient.food]?.name || ingredient.food).join(', ') || 'Masă fără denumire';
-    const recipeServings = recipe?.servings || previous?.servings || 1;
+    const recipeServings = recipe?.servings || activeRecipeServings || previous?.servings || 1;
     journal[currentDate][recipeMealContext].push({ id: editingMealEntryContext?.id || `${Date.now()}-${Math.random()}`, recipeId: recipe?.id || null, isRecipe: true, recipeName: name || fallbackName, ingredients, amount: portions, portionPercent, totalGrams: gramsEnabled ? totalGrams : null, consumedGrams: gramsEnabled ? consumedGrams : null, unit: 'portion', calories: total.calories * portions / recipeServings, protein: total.protein * portions / recipeServings, carbs: total.carbs * portions / recipeServings, fats: total.fats * portions / recipeServings, fiber: total.fiber * portions / recipeServings });
     saveStorage(storageKeys.journal, journal);
   }
