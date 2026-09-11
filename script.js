@@ -1108,7 +1108,7 @@ const authTabs = document.querySelectorAll('[data-auth-tab]');
 const authForms = document.querySelectorAll('[data-auth-form]');
 const accountStatus = document.querySelector('#account-status');
 let activeSupabaseSession = null;
-const synchronizedStorageKeys = ['calorie-calculator-journal', 'calorie-calculator-favorites', 'calorie-calculator-goals', 'calorie-calculator-recipes', 'calorie-calculator-custom-foods'];
+const synchronizedStorageKeys = ['calorie-calculator-journal', 'calorie-calculator-favorites', 'calorie-calculator-goals', 'calorie-calculator-recipes', 'calorie-calculator-custom-foods', 'calorie-calculator-deleted-foods'];
 let supabaseSyncTimer = null;
 
 function localAppDataSnapshot() {
