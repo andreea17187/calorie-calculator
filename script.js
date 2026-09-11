@@ -638,8 +638,8 @@ function showRecipeFolderForm(folder = null) {
     if (!name) return;
     const folders = recipeFolders();
     if (folders.some((item) => item.id !== folder?.id && item.name.toLocaleLowerCase('ro') === name.toLocaleLowerCase('ro'))) return;
-    if (folder) folder.name = name;
-    else folders.push({ id: `folder-${Date.now()}`, name });
+    if (folder) { folder.name = name; folder.updatedAt = Date.now(); }
+    else folders.push({ id: `folder-${Date.now()}`, name, updatedAt: Date.now() });
     saveStorage(recipeFoldersStorageKey, folders);
     syncRecipeFoldersToSupabase();
     form.remove();
@@ -1168,7 +1168,7 @@ document.querySelector('#recipe-form').addEventListener('submit', (event) => {
   if ((!name && !recipeMealContext) || !ingredients.length || unresolved || (gramsEnabled && (!totalGrams || !consumedGrams || totalGrams < 1 || consumedGrams < 1 || consumedGrams > totalGrams))) { document.querySelector('#recipe-error').textContent = unresolved ? 'Alimentele noi trebuie salvate cu valorile lor nutriționale înainte de a continua.' : !name && !recipeMealContext ? 'Introdu un nume pentru a salva rețeta.' : 'Introdu cantitatea totală și cantitatea consumată. Cantitatea consumată nu poate depăși totalul.'; return; }
   const recipes = readStorage(recipeStorageKey, []);
   const previous = recipes.find((recipe) => recipe.id === editingRecipeId);
-  const recipe = name && !recipeMealContext ? { id: editingRecipeId || `${Date.now()}-${Math.random()}`, name, ingredients, servings: previous?.servings || 1, totalGrams: gramsEnabled ? totalGrams : null, consumedGrams: gramsEnabled ? consumedGrams : null, favorite: previous?.favorite || false } : null;
+  const recipe = name && !recipeMealContext ? { id: editingRecipeId || `${Date.now()}-${Math.random()}`, name, ingredients, servings: previous?.servings || 1, totalGrams: gramsEnabled ? totalGrams : null, consumedGrams: gramsEnabled ? consumedGrams : null, favorite: previous?.favorite || false, updatedAt: Date.now() } : null;
   if (recipe) recipe.folderId = document.querySelector('#recipe-folder')?.value || '';
   if (recipe) saveStorage(recipeStorageKey, editingRecipeId ? recipes.map((item) => item.id === editingRecipeId ? recipe : item) : [...recipes, recipe]);
   if (recipeMealContext) {
@@ -1305,8 +1305,46 @@ function migrateLegacyAccountData() {
 function mergeRecipeFolders(localFolders, cloudFolders) {
   const merged = [...(Array.isArray(cloudFolders) ? cloudFolders : [])];
   (Array.isArray(localFolders) ? localFolders : []).forEach((folder) => {
-    if (!merged.some((item) => item.id === folder.id || item.name.toLocaleLowerCase('ro') === folder.name.toLocaleLowerCase('ro'))) merged.push(folder);
+    const index = merged.findIndex((item) => item.id === folder.id || item.name.toLocaleLowerCase('ro') === folder.name.toLocaleLowerCase('ro'));
+    if (index < 0) merged.push(folder);
+    else if (Number(folder.updatedAt || 0) >= Number(merged[index].updatedAt || 0)) merged[index] = folder;
   });
+  return merged;
+}
+
+function mergeById(localItems, cloudItems) {
+  const merged = [...(Array.isArray(cloudItems) ? cloudItems : [])];
+  (Array.isArray(localItems) ? localItems : []).forEach((item) => {
+    const index = merged.findIndex((cloudItem) => cloudItem.id === item.id);
+    if (index < 0) merged.push(item);
+    else if (Number(item.updatedAt || 0) >= Number(merged[index].updatedAt || 0)) merged[index] = item;
+  });
+  return merged;
+}
+
+function mergeJournal(localJournal, cloudJournal) {
+  const merged = { ...(cloudJournal || {}), ...(localJournal || {}) };
+  const dates = new Set([...Object.keys(cloudJournal || {}), ...Object.keys(localJournal || {})]);
+  dates.forEach((date) => {
+    if (date === 'calculatorProfile') return;
+    const localDay = localJournal?.[date] || {};
+    const cloudDay = cloudJournal?.[date] || {};
+    merged[date] = {};
+    Object.keys(mealLabels).forEach((mealKey) => { merged[date][mealKey] = mergeById(localDay[mealKey], cloudDay[mealKey]); });
+  });
+  merged.calculatorProfile = localJournal?.calculatorProfile || cloudJournal?.calculatorProfile;
+  return merged;
+}
+
+function mergeAppData(localData, cloudData) {
+  const merged = { ...(cloudData || {}) };
+  merged['calorie-calculator-journal'] = mergeJournal(localData?.['calorie-calculator-journal'], cloudData?.['calorie-calculator-journal']);
+  merged['calorie-calculator-recipes'] = mergeById(localData?.['calorie-calculator-recipes'], cloudData?.['calorie-calculator-recipes']);
+  merged['calorie-calculator-recipe-folders'] = mergeRecipeFolders(localData?.['calorie-calculator-recipe-folders'], cloudData?.['calorie-calculator-recipe-folders']);
+  merged['calorie-calculator-favorites'] = [...new Set([...(cloudData?.['calorie-calculator-favorites'] || []), ...(localData?.['calorie-calculator-favorites'] || [])])];
+  merged['calorie-calculator-custom-foods'] = { ...(cloudData?.['calorie-calculator-custom-foods'] || {}), ...(localData?.['calorie-calculator-custom-foods'] || {}) };
+  merged['calorie-calculator-deleted-foods'] = { ...(cloudData?.['calorie-calculator-deleted-foods'] || {}), ...(localData?.['calorie-calculator-deleted-foods'] || {}) };
+  merged['calorie-calculator-goals'] = cloudData?.['calorie-calculator-goals'] || localData?.['calorie-calculator-goals'];
   return merged;
 }
 
@@ -1332,11 +1370,11 @@ async function syncAppDataToSupabase() {
   const session = window.__activeSupabaseSession;
   const client = window.__supabaseClient;
   if (!client || !session?.user) return;
-  const snapshot = localAppDataSnapshot();
-  synchronizedStorageKeys.forEach((key) => {
-    if (snapshot[key] !== null && snapshot[key] !== undefined) localStorage.setItem(getStorageKey(key), JSON.stringify(snapshot[key]));
-  });
   const { data: profile } = await client.from('profiles').select('settings').eq('id', session.user.id).maybeSingle();
+  const localData = localAppDataSnapshot();
+  const cloudData = profile?.settings?.calorieCalculatorData || {};
+  const snapshot = mergeAppData(localData, cloudData);
+  synchronizedStorageKeys.forEach((key) => { if (snapshot[key] !== null && snapshot[key] !== undefined) localStorage.setItem(getStorageKey(key), JSON.stringify(snapshot[key])); });
   const { error } = await client.from('profiles').upsert({ id: session.user.id, settings: { ...(profile?.settings || {}), calorieCalculatorData: snapshot } }, { onConflict: 'id' });
   if (error) console.error('Nu am putut sincroniza datele aplicației.', error);
 }
@@ -1353,15 +1391,12 @@ async function restoreAppDataFromSupabase(session) {
   const { data: profile } = await supabaseClient.from('profiles').select('settings').eq('id', session.user.id).maybeSingle();
   const cloudData = profile?.settings?.calorieCalculatorData;
   if (cloudData) {
-    const cloudHasRecipeFolders = Object.prototype.hasOwnProperty.call(cloudData, 'calorie-calculator-recipe-folders');
-    const localFolders = readStorage(recipeFoldersStorageKey, []);
-    const mergedFolders = mergeRecipeFolders(localFolders, cloudData['calorie-calculator-recipe-folders']);
+    const mergedData = mergeAppData(localAppDataSnapshot(), cloudData);
     synchronizedStorageKeys.forEach((key) => {
-      if (cloudData[key] !== null && cloudData[key] !== undefined) localStorage.setItem(getStorageKey(key), JSON.stringify(cloudData[key]));
+      if (mergedData[key] !== null && mergedData[key] !== undefined) localStorage.setItem(getStorageKey(key), JSON.stringify(mergedData[key]));
     });
-    if (mergedFolders.length) localStorage.setItem(getStorageKey(recipeFoldersStorageKey), JSON.stringify(mergedFolders));
-    Object.assign(foodDatabase, cloudData['calorie-calculator-custom-foods'] || {});
-    Object.keys(cloudData['calorie-calculator-deleted-foods'] || {}).forEach((key) => { delete foodDatabase[key]; });
+    Object.assign(foodDatabase, mergedData['calorie-calculator-custom-foods'] || {});
+    Object.keys(mergedData['calorie-calculator-deleted-foods'] || {}).forEach((key) => { delete foodDatabase[key]; });
     prepareMealForm();
     renderFavorites();
     renderMeals();
@@ -1372,8 +1407,7 @@ async function restoreAppDataFromSupabase(session) {
     renderFoodLibrary();
     const savedGoals = readStorage(storageKeys.goals, defaultGoals);
     Object.entries(savedGoals).forEach(([key, value]) => { document.querySelector(`#goal-${key}`).value = value; });
-    await syncRecipeFoldersToSupabase();
-    if (!cloudHasRecipeFolders) await syncAppDataToSupabase();
+    await syncAppDataToSupabase();
   } else {
     await syncAppDataToSupabase();
   }
