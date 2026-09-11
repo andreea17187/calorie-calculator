@@ -8,7 +8,8 @@ const userScopedStorageKeys = new Set([
   'calorie-calculator-favorites',
   'calorie-calculator-goals',
   'calorie-calculator-recipes',
-  'calorie-calculator-custom-foods'
+  'calorie-calculator-custom-foods',
+  'calorie-calculator-deleted-foods'
 ]);
 
 function getStorageKey(key) {
@@ -251,6 +252,7 @@ Object.assign(foodDatabase, recommendationFoods);
 
 try {
   Object.assign(foodDatabase, readStorage('calorie-calculator-custom-foods', {}));
+  Object.keys(readStorage('calorie-calculator-deleted-foods', {})).forEach((key) => { delete foodDatabase[key]; });
 } catch {
   // Catalogul de bază rămâne disponibil dacă datele locale nu pot fi citite.
 }
@@ -821,17 +823,41 @@ function renderFoodLibrary() {
   target.innerHTML = foods.length ? foods.map(([key, food]) => `
     <article class="food-library-card" data-library-food="${key}">
       <h3>${food.name}</h3>
-      <small>Valori nutriționale pentru 100 g</small>
+      <small>Valori nutriționale</small>
       <form class="food-library-form">
         <label class="food-library-name-field">Nume ingredient<input name="name" type="text" value="${food.name}" required></label>
+        <label class="food-library-basis-field">Unitate<select name="basis"><option value="100g">g</option><option value="piece" ${food.units?.piece ? 'selected' : ''}>buc</option><option value="liter" ${food.units?.liter && !food.units?.piece ? 'selected' : ''}>litri</option></select></label>
+        <label class="food-library-piece-weight-field">Greutate bucată (g)<input name="pieceWeight" type="number" min="0.1" step="0.1" value="${food.units?.piece || ''}" placeholder="Ex. 50"></label>
         <label>Calorii<input name="calories" type="number" min="0" step="0.1" value="${food.calories}"></label>
         <label>Proteine<input name="protein" type="number" min="0" step="0.1" value="${food.protein}"></label>
         <label>Carbohidrați<input name="carbs" type="number" min="0" step="0.1" value="${food.carbs}"></label>
         <label>Grăsimi<input name="fats" type="number" min="0" step="0.1" value="${food.fats}"></label>
         <label>Fibre<input name="fiber" type="number" min="0" step="0.1" value="${food.fiber}"></label>
-        <div class="food-library-actions"><button class="secondary-button" type="submit">Salvează modificările</button></div>
+        <div class="food-library-actions"><button class="secondary-button" type="submit">Salvează modificările</button><button class="food-library-delete" type="button" data-delete-library-food="${key}">Șterge alimentul</button></div>
       </form>
     </article>`).join('') : '<div class="food-library-empty">Nu am găsit niciun aliment.</div>';
+  target.querySelectorAll('.food-library-form').forEach((form) => {
+    const basis = form.querySelector('[name="basis"]');
+    const pieceWeight = form.querySelector('[name="pieceWeight"]');
+    const updateBasis = () => {
+      const isPiece = basis.value === 'piece';
+      const isLiter = basis.value === 'liter';
+      pieceWeight.closest('label').hidden = !isPiece;
+      form.querySelectorAll('label:not(.food-library-name-field):not(.food-library-basis-field):not(.food-library-piece-weight-field):not(.food-library-actions)').forEach((label) => {
+        const input = label.querySelector('input');
+        if (!input) return;
+        const key = input.name;
+        const baseValue = Number(input.dataset.baseValue || input.value) || 0;
+        const factor = isPiece ? (Number(pieceWeight.value) || 0) / 100 : isLiter ? 10 : 1;
+        input.value = (baseValue * factor).toFixed(1);
+        input.dataset.baseValue = String(baseValue);
+        label.firstChild.textContent = key === 'calories' ? 'Calorii' : key === 'protein' ? 'Proteine' : key === 'carbs' ? 'Carbohidrați' : key === 'fats' ? 'Grăsimi' : 'Fibre';
+      });
+    };
+    basis.addEventListener('change', updateBasis);
+    pieceWeight.addEventListener('input', updateBasis);
+    updateBasis();
+  });
 }
 
 document.querySelector('#foods-library-search').addEventListener('input', renderFoodLibrary);
@@ -867,10 +893,17 @@ document.querySelector('#foods-library-list').addEventListener('submit', (event)
   event.preventDefault();
   const card = event.target.closest('[data-library-food]');
   const food = foodDatabase[card.dataset.libraryFood];
-  const name = String(new FormData(event.target).get('name') || '').trim();
-  const values = Object.fromEntries(['calories', 'protein', 'carbs', 'fats', 'fiber'].map((key) => [key, Number(new FormData(event.target).get(key))]));
-  if (!food || !name || Object.values(values).some((value) => !Number.isFinite(value) || value < 0)) return;
-  Object.assign(food, values, { name, custom: true });
+  const formData = new FormData(event.target);
+  const name = String(formData.get('name') || '').trim();
+  const basis = formData.get('basis');
+  const pieceWeight = Number(formData.get('pieceWeight'));
+  const values = Object.fromEntries(['calories', 'protein', 'carbs', 'fats', 'fiber'].map((key) => [key, Number(formData.get(key))]));
+  if (!food || !name || (basis === 'piece' && (!Number.isFinite(pieceWeight) || pieceWeight <= 0)) || Object.values(values).some((value) => !Number.isFinite(value) || value < 0)) return;
+  const per100g = basis === 'piece' ? Object.fromEntries(Object.entries(values).map(([key, value]) => [key, value * 100 / pieceWeight])) : basis === 'liter' ? Object.fromEntries(Object.entries(values).map(([key, value]) => [key, value / 10])) : values;
+  const units = { ...(food.units || {}) };
+  if (basis === 'piece') units.piece = pieceWeight;
+  if (basis === 'liter') units.liter = 1000;
+  Object.assign(food, per100g, { name, units, custom: true });
   saveCustomFoods();
   prepareMealForm();
   renderFoodLibrary();
@@ -884,6 +917,21 @@ document.querySelector('#foods-library-list').addEventListener('submit', (event)
     saveButton.classList.remove('is-saved');
   }, 1400);
 });
+document.querySelector('#foods-library-list').addEventListener('click', (event) => {
+  const deleteButton = event.target.closest('[data-delete-library-food]');
+  if (!deleteButton) return;
+  const key = deleteButton.dataset.deleteLibraryFood;
+  const food = foodDatabase[key];
+  if (!food) return;
+  if (!window.confirm(`Ștergi alimentul „${food.name}”?`)) return;
+  delete foodDatabase[key];
+  const deletedFoods = readStorage('calorie-calculator-deleted-foods', {});
+  deletedFoods[key] = true;
+  saveStorage('calorie-calculator-deleted-foods', deletedFoods);
+  saveCustomFoods();
+  prepareMealForm();
+  renderFoodLibrary();
+});
 
 document.querySelector('#add-custom-food').addEventListener('click', () => {
   const panel = document.querySelector('#custom-food-panel');
@@ -894,14 +942,37 @@ document.querySelector('#add-custom-food').addEventListener('click', () => {
   }
 });
 
+function setupFoodBasisControls() {
+  const controls = [
+    { form: document.querySelector('#custom-food-panel'), selectId: 'custom-food-basis', unitId: 'custom-food-unit', before: '.custom-food-grid' },
+    { form: document.querySelector('#food-library-form'), selectId: 'library-food-basis', unitId: 'library-food-unit', before: '.library-food-grid' }
+  ];
+  controls.forEach(({ form, selectId, unitId, before }) => {
+    if (!form || document.querySelector(`#${selectId}`)) return;
+    const label = document.createElement('label');
+    label.className = 'food-basis-control';
+    label.innerHTML = `Unitate de raportare<select id="${selectId}"><option value="100g">g</option><option value="piece">buc</option><option value="liter">litri</option></select>`;
+    form.querySelector(before)?.insertAdjacentElement('beforebegin', label);
+    const select = label.querySelector('select');
+    const unitInput = document.querySelector(`#${unitId}`);
+    const unitContainer = unitInput.closest('label') || unitInput.parentElement;
+    const update = () => { unitContainer?.toggleAttribute('hidden', select.value !== 'piece'); };
+    select.addEventListener('change', update);
+    update();
+  });
+}
+setupFoodBasisControls();
+
 document.querySelector('#save-custom-food').addEventListener('click', () => {
   const name = document.querySelector('#custom-food-name').value.trim();
   const values = ['calories', 'protein', 'carbs', 'fats', 'fiber'].map((key) => Number(document.querySelector(`#custom-food-${key}`).value));
+  const basis = document.querySelector('#custom-food-basis').value;
   const unitWeight = Number(document.querySelector('#custom-food-unit').value);
   const error = document.querySelector('#custom-food-error');
-  if (!name || values.some((value) => !Number.isFinite(value) || value < 0)) { error.textContent = 'Introdu numele și toate valorile nutriționale.'; return; }
+  if (!name || values.some((value) => !Number.isFinite(value) || value < 0) || (basis === 'piece' && (!unitWeight || unitWeight <= 0))) { error.textContent = 'Introdu numele, valorile nutriționale și greutatea bucății.'; return; }
   const key = `custom-${Date.now()}`;
-  foodDatabase[key] = { name, calories: values[0], protein: values[1], carbs: values[2], fats: values[3], fiber: values[4], units: unitWeight > 0 ? { piece: unitWeight } : {}, custom: true };
+  const factor = basis === 'piece' ? 100 / unitWeight : basis === 'liter' ? 0.1 : 1;
+  foodDatabase[key] = { name, calories: values[0] * factor, protein: values[1] * factor, carbs: values[2] * factor, fats: values[3] * factor, fiber: values[4] * factor, units: basis === 'piece' ? { piece: unitWeight } : basis === 'liter' ? { liter: 1000 } : {}, custom: true };
   saveCustomFoods();
   prepareMealForm();
   const existingRow = [...document.querySelectorAll('.ingredient-row')].find((row) => row.querySelector('.ingredient-food').value.trim().toLocaleLowerCase('ro') === name.toLocaleLowerCase('ro') && !row.querySelector('.ingredient-food').dataset.foodKey);
@@ -1078,6 +1149,7 @@ async function restoreAppDataFromSupabase(session) {
       if (cloudData[key] !== null && cloudData[key] !== undefined) localStorage.setItem(getStorageKey(key), JSON.stringify(cloudData[key]));
     });
     Object.assign(foodDatabase, cloudData['calorie-calculator-custom-foods'] || {});
+    Object.keys(cloudData['calorie-calculator-deleted-foods'] || {}).forEach((key) => { delete foodDatabase[key]; });
     prepareMealForm();
     renderFavorites();
     renderMeals();
