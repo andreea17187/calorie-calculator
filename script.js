@@ -184,6 +184,21 @@ const foodDatabase = {
   almonds: { name: 'Migdale', calories: 579, protein: 21.2, carbs: 21.6, fats: 49.9, fiber: 12.5, units: { piece: 1.2 } },
   walnuts: { name: 'Nuci', calories: 654, protein: 15.2, carbs: 13.7, fats: 65.2, fiber: 6.7, units: { piece: 4 } },
   raisins: { name: 'Stafide', calories: 299, protein: 3.1, carbs: 79.2, fats: 0.5, fiber: 3.7, units: { tablespoon: 9 } }
+  ,coffeeGround: { name: 'Cafea măcinată', calories: 2, protein: 0.1, carbs: 0.3, fats: 0, fiber: 0, units: { teaspoon: 2 } }
+  ,coffeeBeans: { name: 'Cafea boabe', calories: 2, protein: 0.1, carbs: 0.3, fats: 0, fiber: 0, units: { teaspoon: 2 } }
+  ,colaZero: { name: 'Cola Zero', calories: 0, protein: 0, carbs: 0, fats: 0, fiber: 0, units: { liter: 1000, glass: 250 } }
+  ,cola: { name: 'Cola', calories: 42, protein: 0, carbs: 10.6, fats: 0, fiber: 0, units: { liter: 1000, glass: 250 } }
+  ,sprite: { name: 'Sprite', calories: 39, protein: 0, carbs: 9.6, fats: 0, fiber: 0, units: { liter: 1000, glass: 250 } }
+  ,fanta: { name: 'Fanta', calories: 46, protein: 0, carbs: 11.5, fats: 0, fiber: 0, units: { liter: 1000, glass: 250 } }
+  ,mirinda: { name: 'Mirinda', calories: 46, protein: 0, carbs: 11.5, fats: 0, fiber: 0, units: { liter: 1000, glass: 250 } }
+  ,vanillaMilk: { name: 'Lapte cu aromă de vanilie', calories: 75, protein: 3.2, carbs: 10.5, fats: 2.5, fiber: 0, units: { liter: 1000, glass: 250 } }
+  ,chocolateMilk: { name: 'Lapte cu aromă de ciocolată', calories: 80, protein: 3.2, carbs: 12.5, fats: 2.5, fiber: 0, units: { liter: 1000, glass: 250 } }
+  ,whiteBread: { name: 'Pâine albă', calories: 266, protein: 8.9, carbs: 49.4, fats: 3.2, fiber: 2.7, units: { piece: 30 } }
+  ,seedBread: { name: 'Pâine cu semințe', calories: 270, protein: 10.5, carbs: 42, fats: 7.5, fiber: 6.5, units: { piece: 35 } }
+  ,jamStrawberry: { name: 'Gem de căpșuni', calories: 250, protein: 0.4, carbs: 64, fats: 0.1, fiber: 1, units: { tablespoon: 20, teaspoon: 7 } }
+  ,jamPlum: { name: 'Gem de prune', calories: 240, protein: 0.5, carbs: 61, fats: 0.1, fiber: 1.3, units: { tablespoon: 20, teaspoon: 7 } }
+  ,apricotPreserve: { name: 'Dulceață de caise', calories: 250, protein: 0.4, carbs: 64, fats: 0.1, fiber: 1, units: { tablespoon: 20, teaspoon: 7 } }
+  ,cherryPreserve: { name: 'Dulceață de vișine', calories: 255, protein: 0.4, carbs: 65, fats: 0.1, fiber: 1, units: { tablespoon: 20, teaspoon: 7 } }
 };
 
 const recommendationFoods = {
@@ -256,7 +271,7 @@ function scaledNutrients(foodKey, amount, unit = 'gram') {
 
 function displayValue(value, suffix = '') { return `${formatDecimal(value)}${suffix}`; }
 function displayQuantity(entry) {
-  const labels = { gram: 'g', piece: entry.amount === 1 ? 'bucată' : 'bucăți', tablespoon: entry.amount === 1 ? 'lingură' : 'linguri', teaspoon: entry.amount === 1 ? 'linguriță' : 'lingurițe', glass: entry.amount === 1 ? 'pahar' : 'pahare' };
+  const labels = { gram: 'g', liter: entry.amount === 1 ? 'litru' : 'litri', piece: entry.amount === 1 ? 'bucată' : 'bucăți', tablespoon: entry.amount === 1 ? 'lingură' : 'linguri', teaspoon: entry.amount === 1 ? 'linguriță' : 'lingurițe', glass: entry.amount === 1 ? 'pahar' : 'pahare' };
   return `${formatDecimal(entry.amount)} ${labels[entry.unit || 'gram']}`;
 }
 
@@ -425,7 +440,7 @@ function updateUnitOptions() {
   const food = foodDatabase[document.querySelector('#meal-food').value];
   const unitSelect = document.querySelector('#meal-unit');
   const current = unitSelect.value;
-  const unitLabels = { gram: 'grame (g)', piece: food?.pieceLabel || 'bucată', tablespoon: 'lingură', teaspoon: 'linguriță', glass: 'pahar' };
+  const unitLabels = { gram: 'grame (g)', liter: 'litri', piece: food?.pieceLabel || 'bucată', tablespoon: 'lingură', teaspoon: 'linguriță', glass: 'pahar' };
   const available = ['gram', ...Object.keys(food?.units || {})];
   unitSelect.innerHTML = available.map((unit) => `<option value="${unit}">${unitLabels[unit]}</option>`).join('');
   unitSelect.value = available.includes(current) ? current : 'gram';
@@ -436,7 +451,7 @@ function updateUnitHint() {
   const food = foodDatabase[document.querySelector('#meal-food').value];
   const unit = document.querySelector('#meal-unit').value;
   const grams = unit === 'gram' ? null : food?.units?.[unit];
-  document.querySelector('#unit-hint').textContent = grams ? `1 ${unit === 'piece' ? 'bucată' : unit === 'tablespoon' ? 'lingură' : 'linguriță'} ≈ ${grams} g` : 'Alege grame dacă nu există o conversie pentru acest aliment.';
+  document.querySelector('#unit-hint').textContent = grams ? `1 ${unit === 'liter' ? 'litru' : unit === 'piece' ? 'bucată' : unit === 'tablespoon' ? 'lingură' : unit === 'teaspoon' ? 'linguriță' : 'pahar'} ≈ ${grams} g` : 'Alege grame dacă nu există o conversie pentru acest aliment.';
 }
 
 document.querySelector('#meal-form').addEventListener('submit', (event) => {
@@ -575,7 +590,7 @@ function renderRecipes() {
 
 function ingredientUnitOptions(foodKey, selected = 'gram') {
   const food = foodDatabase[foodKey];
-  const labels = { gram: 'g', piece: 'bucată / cantitate', tablespoon: 'lingură', teaspoon: 'linguriță', glass: 'pahar' };
+  const labels = { gram: 'g', liter: 'litri', piece: 'bucată / cantitate', tablespoon: 'lingură', teaspoon: 'linguriță', glass: 'pahar' };
   const availableUnits = foodKey ? Object.keys(food?.units || {}) : ['piece'];
   return ['gram', ...availableUnits].map((unit) => `<option value="${unit}" ${unit === selected ? 'selected' : ''}>${labels[unit]}</option>`).join('');
 }
@@ -602,7 +617,9 @@ function addIngredientRow(ingredient = null) {
   const rowId = `ingredient-${ingredientCounter++}`;
   const row = document.createElement('div');
   row.className = 'ingredient-row'; row.dataset.rowId = rowId;
-  row.innerHTML = `<div class="ingredient-food-wrap"><input class="ingredient-food" type="text" value="${key ? foodDatabase[key].name : ''}" placeholder="Scrie alimentul..." aria-label="Ingredient"><div class="food-recommendations" role="listbox"></div></div><input class="ingredient-amount" type="number" min="1" step="1" value="${ingredient?.amount || 100}" aria-label="Cantitate"><select class="ingredient-unit" aria-label="Unitate">${ingredientUnitOptions(key, ingredient?.unit || 'gram')}</select><button type="button" class="icon-button remove-ingredient" aria-label="Șterge ingredientul">×</button><div class="ingredient-nutrition-preview"></div>`;
+  row.draggable = true;
+  row.style.setProperty('--ingredient-color', ingredient?.color || '#fbfcfb');
+  row.innerHTML = `<div class="ingredient-move-controls"><button type="button" class="ingredient-move-up" aria-label="Mută ingredientul în sus">↑</button><button type="button" class="ingredient-move-down" aria-label="Mută ingredientul în jos">↓</button></div><div class="ingredient-food-wrap"><input class="ingredient-food" type="text" value="${key ? foodDatabase[key].name : ''}" placeholder="Scrie alimentul..." aria-label="Ingredient"><div class="food-recommendations" role="listbox"></div></div><input class="ingredient-amount" type="number" min="1" step="1" value="${ingredient?.amount || 100}" aria-label="Cantitate"><select class="ingredient-unit" aria-label="Unitate">${ingredientUnitOptions(key, ingredient?.unit || 'gram')}</select><input class="ingredient-color" type="color" value="${ingredient?.color || '#fbfcfb'}" aria-label="Culoare ingredient"><button type="button" class="icon-button remove-ingredient" aria-label="Șterge ingredientul">×</button><div class="ingredient-nutrition-preview"></div>`;
   document.querySelector('#ingredient-list').appendChild(row);
   const amountInput = row.querySelector('.ingredient-amount');
   amountInput.min = '1';
@@ -624,6 +641,18 @@ function addIngredientRow(ingredient = null) {
   });
   row.querySelector('.ingredient-amount').addEventListener('input', (event) => { const amount = Number(event.target.value); if (Number.isFinite(amount) && amount > 0) event.target.value = Math.round(amount); renderIngredientNutrition(row); updateRecipePreview(); });
   row.querySelector('.ingredient-unit').addEventListener('change', () => { renderIngredientNutrition(row); updateRecipePreview(); });
+  row.querySelector('.ingredient-color').addEventListener('input', (event) => { row.style.setProperty('--ingredient-color', event.target.value); });
+  row.querySelector('.ingredient-move-up').addEventListener('click', () => { const previous = row.previousElementSibling; if (previous) row.parentElement.insertBefore(row, previous); });
+  row.querySelector('.ingredient-move-down').addEventListener('click', () => { const next = row.nextElementSibling; if (next) row.parentElement.insertBefore(next, row); });
+  row.addEventListener('dragstart', () => { row.classList.add('is-dragging'); });
+  row.addEventListener('dragend', () => { row.classList.remove('is-dragging'); });
+  row.addEventListener('dragover', (event) => {
+    event.preventDefault();
+    const dragging = document.querySelector('.ingredient-row.is-dragging');
+    if (!dragging || dragging === row) return;
+    const before = event.clientY < row.getBoundingClientRect().top + row.getBoundingClientRect().height / 2;
+    row.parentElement.insertBefore(dragging, before ? row : row.nextSibling);
+  });
   row.querySelector('.remove-ingredient').addEventListener('click', () => { row.remove(); updateRecipePreview(); });
   renderIngredientNutrition(row);
   updateRecipePreview();
@@ -667,7 +696,7 @@ function collectIngredients() {
     const food = row.querySelector('.ingredient-food').dataset.foodKey || '';
     const amount = Number(row.querySelector('.ingredient-amount').value);
     const unit = row.querySelector('.ingredient-unit').value;
-    return { food, amount, unit, nutrients: scaledNutrients(food, amount, unit) };
+    return { food, amount, unit, color: row.querySelector('.ingredient-color')?.value || '#fbfcfb', nutrients: scaledNutrients(food, amount, unit) };
   }).filter((ingredient) => ingredient.food && ingredient.amount > 0 && ingredient.nutrients.grams > 0);
 }
 

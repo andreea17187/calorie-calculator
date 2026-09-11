@@ -176,6 +176,24 @@ footer { display: flex; justify-content: space-between; padding: 38px 7.5% 30px;
 .recipe-ingredients-heading .text-button { border-color: transparent; background: #f0f6f1; }
 .recipe-ingredients-heading .text-button:hover { border-color: var(--green); background: var(--green); }
 .ingredient-row { padding: 8px; border: 1px solid var(--line); border-radius: 9px; background: #fbfcfb; }
+.ingredient-row { background: var(--ingredient-color, #fbfcfb); }
+.ingredient-move-controls { display: flex; flex-direction: column; gap: 2px; }
+.ingredient-move-controls button { width: 22px; height: 18px; padding: 0; border: 1px solid var(--line); border-radius: 4px; background: white; color: var(--muted); font-size: 11px; line-height: 1; }
+.ingredient-move-controls button:hover { border-color: var(--green); color: var(--green); }
+.ingredient-color { width: 28px !important; height: 28px !important; padding: 2px !important; border: 1px solid var(--line) !important; border-radius: 6px !important; background: white !important; cursor: pointer; }
+.ingredient-row.is-dragging { opacity: .55; }
+
+.ingredient-row { grid-template-columns: 26px minmax(0, 1fr) 72px 82px 28px 28px; }
+.food-entry { grid-template-columns: 28px minmax(0, 1fr) auto auto; align-items: start; }
+.food-entry-name { min-width: 0; line-height: 1.25; }
+.food-entry-name small { display: block; }
+.entry-actions { display: flex; align-items: center; gap: 5px; }
+@media (max-width: 600px), (hover: none) and (pointer: coarse) {
+  .ingredient-row { grid-template-columns: 26px minmax(0, 1fr) 54px 70px 28px 28px; gap: 5px; }
+  .food-entry { grid-template-columns: 28px minmax(0, 1fr) auto; align-items: start; }
+  .food-entry-name { text-align: center; }
+  .entry-actions { grid-column: 2 / -1; justify-content: flex-end; }
+}
 .ingredient-row + .ingredient-row { margin-top: 8px; }
 .ingredient-nutrition-preview { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 5px 12px; padding: 7px 2px 1px; border-top: 1px solid #eef3ef; color: var(--green); font-size: 10px; font-weight: 700; line-height: 1.3; }.ingredient-nutrition-preview span + span { color: var(--muted); font-weight: 500; }.ingredient-nutrition-preview.is-empty { color: var(--muted); font-size: 9px; font-weight: 400; }
 .ingredient-food-wrap { position: relative; min-width: 0; }
@@ -378,4 +396,9 @@ footer { display: flex; justify-content: space-between; padding: 38px 7.5% 30px;
   .food-entry { grid-template-columns: 28px minmax(0, 1fr) auto auto; }
   .food-entry-name { text-align: center; }
   .entry-actions { grid-column: auto; }
+}
+
+.ingredient-row { grid-template-columns: 26px minmax(0, 1fr) 72px 82px 28px 28px; gap: 6px; }
+@media (max-width: 600px), (hover: none) and (pointer: coarse) {
+  .ingredient-row { grid-template-columns: 26px minmax(0, 1fr) 54px 70px 28px 28px; gap: 5px; }
 }
