@@ -300,6 +300,19 @@ function nutrientTotals(entries) {
   }, { calories: 0, protein: 0, carbs: 0, fats: 0, fiber: 0 });
 }
 
+function renderCurrentPreparations(day) {
+  const target = document.querySelector('#current-preparations-list');
+  if (!target) return;
+  const preparations = getCurrentPreparations();
+  target.innerHTML = preparations.length ? preparations.map((entry) => {
+    const totalGrams = Number(entry.totalGrams);
+    const consumedGrams = Math.min(totalGrams, Math.max(0, Number(entry.consumedGrams) || 0));
+    const remainingGrams = Math.max(0, totalGrams - consumedGrams);
+    const progress = Math.min(100, Math.max(0, (consumedGrams / totalGrams) * 100));
+    return `<div class="current-preparation"><div class="current-preparation-values"><strong>${recipeEntryName(entry)}</strong><span>${formatDecimal(consumedGrams)} g</span><span>${formatDecimal(remainingGrams)} g rămase</span><button class="icon-button current-preparation-delete" type="button" data-delete-current-preparation="${entry.id}" data-preparation-date="${entry.sourceDate}" aria-label="Aruncă preparatul" title="Aruncă preparatul">×</button></div><div class="current-preparation-progress" role="progressbar" aria-label="${recipeEntryName(entry)}: ${formatDecimal(progress)}% consumat" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(progress)}"><span style="width: ${progress}%"></span></div></div>`;
+  }).join('') : '<p class="current-preparations-empty">Nu ai preparate cu cantitate totală setată.</p>';
+}
+
 function scaledNutrients(foodKey, amount, unit = 'gram') {
   const base = foodDatabase[foodKey];
   if (!base) return { grams: 0, calories: 0, protein: 0, carbs: 0, fats: 0, fiber: 0 };
@@ -329,6 +342,7 @@ function renderMeals() {
       </div>`).join('') : '<div class="meal-empty">Niciun aliment adăugat încă.</div>';
     return `<article class="meal-card"><div class="meal-card-head"><div class="meal-card-title"><span class="meal-emoji">${mealIcons[key]}</span><h3>${label}</h3></div><span class="meal-total"><b>${formatNumber(totals.calories)} kcal</b><small>P ${displayValue(totals.protein, 'g')} · C ${displayValue(totals.carbs, 'g')} · G ${displayValue(totals.fats, 'g')} · F ${displayValue(totals.fiber, 'g')}</small></span><button class="meal-add-button" type="button" data-meal-add="${key}">+ Adaugă masă</button></div><div class="meal-items">${entryMarkup}</div></article>`;
   }).join('');
+  renderCurrentPreparations(journal[currentDate]);
   updateDashboardTotals(journal[currentDate]);
 }
 
@@ -575,6 +589,9 @@ const recipeStorageKey = 'calorie-calculator-recipes';
 let editingRecipeId = null;
 let recipeMealContext = null;
 let editingMealEntryContext = null;
+let selectedCurrentPreparationId = null;
+let selectedCurrentPreparationDate = null;
+let selectedCurrentPreparationTotalGrams = null;
 let ingredientCounter = 0;
 let activeRecipeServings = 1;
 
@@ -622,27 +639,59 @@ function ensureMealRecipePicker() {
   picker = document.createElement('div');
   picker.id = 'meal-recipe-picker';
   picker.className = 'meal-recipe-picker';
-  picker.innerHTML = '<label class="field"><span>Rețetă salvată (opțional)</span><input id="meal-recipe-search" type="search" placeholder="Caută o rețetă..."><div id="meal-recipe-results" class="meal-recipe-results"></div></label>';
+  picker.innerHTML = '<label class="field"><span>Rețetă salvată (opțional)</span><select id="saved-recipe-select"><option value="">Alege o rețetă salvată...</option></select></label><label class="field current-preparation-picker"><span>Preparate actuale (opțional)</span><select id="current-preparation-select"><option value="">Alege un preparat actual...</option></select><small id="current-preparation-hint" class="unit-hint"></small></label>';
   document.querySelector('#recipe-name').closest('.field').insertAdjacentElement('beforebegin', picker);
-  const input = picker.querySelector('#meal-recipe-search');
-  const results = picker.querySelector('#meal-recipe-results');
-  const renderMatches = () => {
-    const query = input.value.trim().toLocaleLowerCase('ro');
-    const recipes = readStorage(recipeStorageKey, []).filter((recipe) => !query || recipe.name.toLocaleLowerCase('ro').includes(query));
-    results.innerHTML = recipes.length ? recipes.map((recipe) => `<button type="button" class="meal-recipe-result" data-recipe-id="${recipe.id}">${recipe.name}<small>${recipe.ingredients.length} ingrediente</small></button>`).join('') : '<small class="unit-hint">Nu am găsit rețete salvate.</small>';
-    results.querySelectorAll('[data-recipe-id]').forEach((button) => button.addEventListener('click', () => {
-      const recipe = readStorage(recipeStorageKey, []).find((item) => item.id === button.dataset.recipeId);
-      if (recipe) openRecipeModal(recipe, recipeMealContext);
-    }));
-  };
-  input.addEventListener('input', renderMatches);
-  input.addEventListener('focus', renderMatches);
-  document.querySelector('#recipe-name').addEventListener('input', () => {
-    if (!recipeMealContext) return;
-    input.value = document.querySelector('#recipe-name').value;
-    renderMatches();
+  picker.querySelector('#saved-recipe-select').addEventListener('change', (event) => {
+    const recipe = readStorage(recipeStorageKey, []).find((item) => item.id === event.target.value);
+    if (recipe) openRecipeModal(recipe, recipeMealContext);
+  });
+  picker.querySelector('#current-preparation-select').addEventListener('change', (event) => {
+    const [sourceDate, sourceId] = event.target.value.split('::');
+    const source = getCurrentPreparations().find((entry) => entry.id === sourceId && entry.sourceDate === sourceDate);
+    if (source) openRecipeModal(null, recipeMealContext, null, source);
   });
   return picker;
+}
+
+function getCurrentPreparations() {
+  const journal = readStorage(storageKeys.journal, {});
+  return Object.entries(journal)
+    .filter(([dateValue, day]) => /^\d{4}-\d{2}-\d{2}$/.test(dateValue) && day)
+    .flatMap(([sourceDate, day]) => Object.keys(mealLabels).flatMap((mealKey) => (day[mealKey] || []).map((entry) => ({ ...entry, sourceDate, sourceMeal: mealKey }))))
+    .filter((entry) => !entry.discarded && entry.isRecipe && Number(entry.totalGrams) > 0 && Number(entry.totalGrams) - Number(entry.consumedGrams || 0) > 0)
+    .sort((first, second) => second.sourceDate.localeCompare(first.sourceDate));
+}
+
+document.querySelector('#current-preparations-list').addEventListener('click', (event) => {
+  const button = event.target.closest('[data-delete-current-preparation]');
+  if (!button) return;
+  const preparation = getCurrentPreparations().find((entry) => entry.id === button.dataset.deleteCurrentPreparation && entry.sourceDate === button.dataset.preparationDate);
+  if (!preparation || !window.confirm(`Arunci preparatul „${recipeEntryName(preparation)}”?`)) return;
+  const journal = readStorage(storageKeys.journal, {});
+  const sourceDay = journal[preparation.sourceDate];
+  const sourceEntry = sourceDay?.[preparation.sourceMeal]?.find((entry) => entry.id === preparation.id);
+  if (!sourceEntry) return;
+  sourceEntry.discarded = true;
+  saveStorage(storageKeys.journal, journal);
+  renderMeals();
+  renderCurrentPreparationOptions();
+});
+function renderCurrentPreparationOptions() {
+  const select = document.querySelector('#current-preparation-select');
+  if (!select) return;
+  const preparations = getCurrentPreparations();
+  select.innerHTML = `<option value="">Alege un preparat actual...</option>${preparations.map((entry) => {
+    const remaining = Math.max(0, Number(entry.totalGrams) - Number(entry.consumedGrams || 0));
+    return `<option value="${entry.sourceDate}::${entry.id}">${recipeEntryName(entry)} · ${formatDecimal(remaining)} g rămase</option>`;
+  }).join('')}`;
+  select.value = selectedCurrentPreparationId ? `${selectedCurrentPreparationDate}::${selectedCurrentPreparationId}` : '';
+}
+
+function renderSavedRecipeOptions() {
+  const select = document.querySelector('#saved-recipe-select');
+  if (!select) return;
+  const recipes = readStorage(recipeStorageKey, []);
+  select.innerHTML = `<option value="">Alege o rețetă salvată...</option>${recipes.map((recipe) => `<option value="${recipe.id}">${recipe.name} · ${recipe.ingredients.length} ingrediente</option>`).join('')}`;
 }
 
 function renderRecipes() {
@@ -784,16 +833,27 @@ function updateRecipePreview() {
   document.querySelector('#recipe-per-serving-macros').textContent = `P ${formatDecimal(total.protein * consumedRatio)} g · C ${formatDecimal(total.carbs * consumedRatio)} g · G ${formatDecimal(total.fats * consumedRatio)} g · F ${formatDecimal(total.fiber * consumedRatio)} g`;
 }
 
-function openRecipeModal(recipe = null, mealType = null, mealEntry = null) {
+function openRecipeModal(recipe = null, mealType = null, mealEntry = null, currentPreparation = null) {
   editingRecipeId = recipe?.id && !mealType ? recipe.id : null;
   recipeMealContext = mealType;
   editingMealEntryContext = mealEntry;
+  selectedCurrentPreparationId = currentPreparation?.id || null;
+  selectedCurrentPreparationDate = currentPreparation?.sourceDate || null;
+  selectedCurrentPreparationTotalGrams = currentPreparation ? Number(currentPreparation.totalGrams) : null;
   activeRecipeServings = recipe?.servings || 1;
   document.querySelector('#recipe-modal').hidden = false;
   const picker = ensureMealRecipePicker();
   picker.hidden = !mealType;
-  if (mealType) picker.querySelector('#meal-recipe-search').value = recipe?.name || '';
-  document.querySelector('#recipe-modal-title').textContent = recipe ? 'Editează masa' : mealType ? `Adaugă masă · ${mealLabels[mealType]}` : 'Rețetă nouă';
+  renderSavedRecipeOptions();
+  if (mealType && recipe?.id) picker.querySelector('#saved-recipe-select').value = recipe.id;
+  renderCurrentPreparationOptions();
+  if (currentPreparation) {
+    const remaining = Math.max(0, Number(currentPreparation.totalGrams) - Number(currentPreparation.consumedGrams || 0));
+    document.querySelector('#current-preparation-select').value = `${currentPreparation.sourceDate}::${currentPreparation.id}`;
+    document.querySelector('#current-preparation-hint').textContent = `${formatDecimal(remaining)} g disponibile`;
+    recipe = { name: recipeEntryName(currentPreparation), ingredients: currentPreparation.ingredients, totalGrams: remaining, consumedGrams: remaining };
+  }
+  document.querySelector('#recipe-modal-title').textContent = currentPreparation ? `Adaugă masă · ${mealLabels[mealType]}` : recipe ? 'Editează masa' : mealType ? `Adaugă masă · ${mealLabels[mealType]}` : 'Rețetă nouă';
   document.querySelector('#recipe-name').value = recipe?.name || '';
   document.querySelector('#custom-food-panel').hidden = true;
   document.querySelector('#recipe-error').textContent = '';
@@ -801,14 +861,14 @@ function openRecipeModal(recipe = null, mealType = null, mealEntry = null) {
   (recipe?.ingredients || [null]).forEach(addIngredientRow);
   const ingredientGrams = recipeIngredientGrams(collectIngredients());
   const totalGrams = recipe?.totalGrams || ingredientGrams || 100;
-  document.querySelector('#recipe-use-grams').checked = Boolean(recipe?.totalGrams || mealEntry?.totalGrams);
+  document.querySelector('#recipe-use-grams').checked = Boolean(recipe?.totalGrams || mealEntry?.totalGrams || currentPreparation);
   document.querySelector('#recipe-total-grams').value = totalGrams;
-  document.querySelector('#recipe-consumed-grams').value = recipe?.consumedGrams || mealEntry?.consumedGrams || (mealEntry?.portionPercent ? totalGrams * mealEntry.portionPercent / 100 : totalGrams);
+  document.querySelector('#recipe-consumed-grams').value = currentPreparation ? totalGrams : recipe?.consumedGrams || mealEntry?.consumedGrams || (mealEntry?.portionPercent ? totalGrams * mealEntry.portionPercent / 100 : totalGrams);
   document.querySelector('#recipe-use-grams').dispatchEvent(new Event('change'));
   updateRecipePreview();
 }
 
-function closeRecipeModal() { document.querySelector('#recipe-modal').hidden = true; editingRecipeId = null; recipeMealContext = null; editingMealEntryContext = null; document.querySelector('#recipe-error').textContent = ''; }
+function closeRecipeModal() { document.querySelector('#recipe-modal').hidden = true; editingRecipeId = null; recipeMealContext = null; editingMealEntryContext = null; selectedCurrentPreparationId = null; selectedCurrentPreparationDate = null; selectedCurrentPreparationTotalGrams = null; document.querySelector('#recipe-error').textContent = ''; }
 
 function saveCustomFoods() {
   const customFoods = Object.fromEntries(Object.entries(foodDatabase).filter(([, food]) => food.custom));
@@ -1010,15 +1070,23 @@ document.querySelector('#recipe-form').addEventListener('submit', (event) => {
   if (recipeMealContext) {
     const total = recipeTotals(ingredients);
     const journal = getDayJournal();
+    const sourceDay = selectedCurrentPreparationDate ? journal[selectedCurrentPreparationDate] : null;
+    const sourceEntry = selectedCurrentPreparationId && sourceDay ? Object.keys(mealLabels)
+      .flatMap((mealKey) => sourceDay[mealKey] || [])
+      .find((entry) => entry.id === selectedCurrentPreparationId) : null;
     Object.keys(mealLabels).forEach((mealKey) => {
       const entries = journal[currentDate][mealKey] || [];
       journal[currentDate][mealKey] = entries.filter((entry) => entry.id !== editingMealEntryContext?.id);
     });
-    const portions = gramsEnabled ? consumedGrams / totalGrams : 1;
+    const portions = gramsEnabled ? consumedGrams / (sourceEntry ? Number(sourceEntry.totalGrams) : totalGrams) : 1;
     const portionPercent = portions * 100;
     const fallbackName = ingredients.map((ingredient) => foodDatabase[ingredient.food]?.name || ingredient.food).join(', ') || 'Masă fără denumire';
     const recipeServings = recipe?.servings || activeRecipeServings || previous?.servings || 1;
-    journal[currentDate][recipeMealContext].push({ id: editingMealEntryContext?.id || `${Date.now()}-${Math.random()}`, recipeId: recipe?.id || null, isRecipe: true, recipeName: name || fallbackName, ingredients, amount: portions, portionPercent, totalGrams: gramsEnabled ? totalGrams : null, consumedGrams: gramsEnabled ? consumedGrams : null, unit: 'portion', calories: total.calories * portions / recipeServings, protein: total.protein * portions / recipeServings, carbs: total.carbs * portions / recipeServings, fats: total.fats * portions / recipeServings, fiber: total.fiber * portions / recipeServings });
+    if (sourceEntry) {
+      sourceEntry.consumedGrams = Math.min(Number(sourceEntry.totalGrams), Number(sourceEntry.consumedGrams || 0) + consumedGrams);
+      sourceEntry.portionPercent = (sourceEntry.consumedGrams / Number(sourceEntry.totalGrams)) * 100;
+    }
+    journal[currentDate][recipeMealContext].push({ id: editingMealEntryContext?.id || `${Date.now()}-${Math.random()}`, recipeId: recipe?.id || null, isRecipe: true, recipeName: name || fallbackName, ingredients, amount: portions, portionPercent, totalGrams: sourceEntry ? null : (gramsEnabled ? totalGrams : null), consumedGrams: sourceEntry ? null : (gramsEnabled ? consumedGrams : null), unit: 'portion', calories: total.calories * portions / recipeServings, protein: total.protein * portions / recipeServings, carbs: total.carbs * portions / recipeServings, fats: total.fats * portions / recipeServings, fiber: total.fiber * portions / recipeServings });
     saveStorage(storageKeys.journal, journal);
   }
   closeRecipeModal(); renderRecipes(); renderMeals();

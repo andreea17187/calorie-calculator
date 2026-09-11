@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=4">
+  <link rel="stylesheet" href="style.css?v=7">
 </head>
 <body>
   <div class="page-shell">
@@ -53,6 +53,7 @@
             <div class="meals-list" id="meals-list"></div>
           </div>
           <aside class="dashboard-side">
+            <section class="current-preparations" aria-labelledby="current-preparations-title"><div class="current-preparations-heading"><h3 id="current-preparations-title">Preparate actuale</h3><span aria-hidden="true">◒</span></div><div id="current-preparations-list"></div></section>
             <section class="side-card goals-card"><div class="side-card-heading"><h3>Obiective zilnice</h3><span>⚙</span></div><p class="side-hint">Ajustează țintele pentru dashboard.</p><form id="goals-form" class="goals-form"><label>Calorii<input type="number" id="goal-calories" min="500" max="10000"></label><label>Proteine (g)<input type="number" id="goal-protein" min="1" max="500"></label><label>Carbohidrați (g)<input type="number" id="goal-carbs" min="1" max="800"></label><label>Grăsimi (g)<input type="number" id="goal-fats" min="1" max="300"></label><label>Fibre (g)<input type="number" id="goal-fiber" min="1" max="150"></label><button class="secondary-button" type="submit">Salvează obiectivele</button></form></section>
           </aside>
         </div>
@@ -307,6 +308,6 @@
   </div>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabase-config.js"></script>
-  <script src="script.js?v=4"></script>
+  <script src="script.js?v=8"></script>
 </body>
 </html>
