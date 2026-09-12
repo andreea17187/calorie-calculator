@@ -15,11 +15,16 @@ const userScopedStorageKeys = new Set([
 
 function getStorageKey(key) {
   if (!userScopedStorageKeys.has(key)) return key;
+
   try {
-    const supabaseEmail = window.__activeSupabaseSession?.user?.email;
-    const localSession = JSON.parse(localStorage.getItem('calorie-calculator-session') || 'null');
-    const email = supabaseEmail || localSession?.email;
-    return email ? `${key}::${encodeURIComponent(email)}` : key;
+    const activeUser = window.__activeSupabaseSession?.user;
+    const persistedUser = getPersistedUserContext();
+    const userId = activeUser?.id || persistedUser?.id || null;
+    const email = activeUser?.email || persistedUser?.email || null;
+
+    if (userId) return `${key}::${encodeURIComponent(String(userId))}`;
+    if (email) return `${key}::${encodeURIComponent(String(email))}`;
+    return key;
   } catch {
     return key;
   }
@@ -265,7 +270,13 @@ const formatDecimal = (value) => value.toLocaleString('ro-RO', { maximumFraction
 const mealLabels = { breakfast: 'Mic dejun', lunch: 'Prânz', dinner: 'Cină', snacks: 'Gustări' };
 const mealIcons = { breakfast: '☀', lunch: '◒', dinner: '☾', snacks: '✦' };
 const defaultGoals = { calories: 2000, protein: 130, carbs: 220, fats: 65, fiber: 30 };
-const today = new Date().toISOString().slice(0, 10);
+function getLocalDateString(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+const today = getLocalDateString();
 const dateInput = document.querySelector('#selected-date');
 const previousDayButton = document.querySelector('#previous-day');
 const nextDayButton = document.querySelector('#next-day');
@@ -273,6 +284,83 @@ const calendarButton = document.querySelector('#calendar-button');
 const storageKeys = { journal: 'calorie-calculator-journal', favorites: 'calorie-calculator-favorites', goals: 'calorie-calculator-goals' };
 let currentDate = today;
 let editingEntryId = null;
+let journalSupabaseCache = {};
+
+function hasActiveSupabaseUser() {
+  return Boolean(window.__supabaseClient && window.__activeSupabaseSession?.user);
+}
+
+function getPersistedUserContext() {
+  try {
+    const raw = localStorage.getItem('calorie-calculator-session');
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed?.user_id || parsed?.id || parsed?.email) {
+      return {
+        id: parsed.user_id || parsed.id || null,
+        email: parsed.email || null
+      };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function mapMealRowToEntry(row = {}) {
+  const entry = {
+    id: row.id || `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    food: row.food || row.food_key || '',
+    amount: Number(row.amount || 0),
+    unit: row.unit || 'gram',
+    calories: Number(row.calories || 0),
+    protein: Number(row.protein || 0),
+    carbs: Number(row.carbs || 0),
+    fats: Number(row.fats || 0),
+    fiber: Number(row.fiber || 0),
+    meal_type: row.meal_type || 'breakfast',
+    mealType: row.meal_type || 'breakfast',
+    consumed_on: row.consumed_on || currentDate,
+    user_id: row.user_id || null,
+    recipe_id: row.recipe_id || null,
+    recipeName: row.recipe_name || '',
+    totalGrams: row.total_grams ?? null,
+    consumedGrams: row.consumed_grams ?? null,
+    portionPercent: row.portion_percent ?? null,
+    ingredients: Array.isArray(row.ingredients) ? row.ingredients : [],
+    isRecipe: Boolean(row.recipe_id),
+    discarded: Boolean(row.discarded)
+  };
+  return entry;
+}
+
+function buildJournalFromMealRows(rows = []) {
+  const journal = {};
+  rows.forEach((row) => {
+    const consumedOn = row.consumed_on || currentDate;
+    if (!journal[consumedOn]) journal[consumedOn] = { breakfast: [], lunch: [], dinner: [], snacks: [] };
+    const mealType = row.meal_type || 'breakfast';
+    if (!journal[consumedOn][mealType]) journal[consumedOn][mealType] = [];
+    journal[consumedOn][mealType].push(mapMealRowToEntry(row));
+  });
+  return journal;
+}
+
+async function hydrateJournalFromSupabase() {
+  if (!hasActiveSupabaseUser()) {
+    journalSupabaseCache = {};
+    return {};
+  }
+  const client = window.__supabaseClient;
+  const session = window.__activeSupabaseSession;
+  const { data, error } = await client.from('meals').select('*').eq('user_id', session.user.id);
+  if (error) {
+    console.error('Nu am putut încărca jurnalul din public.meals.', error);
+    return {};
+  }
+  journalSupabaseCache = buildJournalFromMealRows(data || []);
+  return journalSupabaseCache;
+}
 
 function formatDateDisplay(dateValue) {
   if (!dateValue) return '--/--/----';
@@ -281,15 +369,36 @@ function formatDateDisplay(dateValue) {
 }
 
 function readStorage(key, fallback) {
-  try { return JSON.parse(localStorage.getItem(getStorageKey(key))) || fallback; } catch { return fallback; }
+  try {
+    const storedValue = localStorage.getItem(getStorageKey(key));
+    const hasPersistedUserContext = Boolean(getPersistedUserContext());
+
+    if (key === storageKeys.journal && hasActiveSupabaseUser()) return fallback;
+    if (storedValue === null && hasPersistedUserContext && !hasActiveSupabaseUser()) {
+      return fallback;
+    }
+
+    return JSON.parse(storedValue ?? 'null') ?? fallback;
+  } catch { return fallback; }
 }
 
 function saveStorage(key, value) {
+  if (key === storageKeys.journal && hasActiveSupabaseUser()) return;
+  const persistedUserContext = getPersistedUserContext();
+  if (persistedUserContext && !hasActiveSupabaseUser()) {
+    localStorage.setItem(getStorageKey(key), JSON.stringify(value));
+    return;
+  }
   localStorage.setItem(getStorageKey(key), JSON.stringify(value));
   if (typeof queueSupabaseSync === 'function') queueSupabaseSync(key);
 }
 
 function getDayJournal() {
+  if (hasActiveSupabaseUser()) {
+    const cache = journalSupabaseCache[currentDate] || { breakfast: [], lunch: [], dinner: [], snacks: [] };
+    const journal = { ...journalSupabaseCache, [currentDate]: cache };
+    return journal;
+  }
   const journal = readStorage(storageKeys.journal, {});
   if (!journal[currentDate]) journal[currentDate] = { breakfast: [], lunch: [], dinner: [], snacks: [] };
   return journal;
@@ -329,7 +438,10 @@ function displayQuantity(entry) {
   return `${formatDecimal(entry.amount)} ${labels[entry.unit || 'gram']}`;
 }
 
-function renderMeals() {
+async function renderMeals() {
+  if (hasActiveSupabaseUser()) {
+    await hydrateJournalFromSupabase();
+  }
   const journal = getDayJournal();
   const mealsList = document.querySelector('#meals-list');
   mealsList.innerHTML = Object.entries(mealLabels).map(([key, label]) => {
@@ -364,7 +476,7 @@ let reportWeekEnd = today;
 function shiftDate(dateValue, days) {
   const date = new Date(`${dateValue}T12:00:00`);
   date.setDate(date.getDate() + days);
-  return date.toISOString().slice(0, 10);
+  return getLocalDateString(date);
 }
 
 function reportDays() {
@@ -509,7 +621,7 @@ function updateUnitHint() {
   document.querySelector('#unit-hint').textContent = grams ? `1 ${unit === 'liter' ? 'litru' : unit === 'piece' ? 'bucată' : unit === 'tablespoon' ? 'lingură' : unit === 'teaspoon' ? 'linguriță' : 'pahar'} ≈ ${grams} g` : 'Alege grame dacă nu există o conversie pentru acest aliment.';
 }
 
-document.querySelector('#meal-form').addEventListener('submit', (event) => {
+document.querySelector('#meal-form').addEventListener('submit', async (event) => {
   event.preventDefault();
   const food = document.querySelector('#meal-food').value;
   const meal = document.querySelector('#meal-type').value;
@@ -517,6 +629,62 @@ document.querySelector('#meal-form').addEventListener('submit', (event) => {
   const unit = document.querySelector('#meal-unit').value;
   const converted = scaledNutrients(food, amount, unit);
   if (!food || !amount || amount < 0.1 || (unit === 'gram' && amount > 5000) || !converted.grams) { document.querySelector('#meal-error').textContent = 'Alege o unitate disponibilă și introdu o cantitate validă.'; return; }
+
+  if (hasActiveSupabaseUser()) {
+    const session = window.__activeSupabaseSession;
+    const client = window.__supabaseClient;
+    if (!session?.user?.id) {
+      console.error('Meal insert failed: no authenticated user id.');
+      alert('Trebuie să fii autentificat pentru a salva un aliment.');
+      return;
+    }
+
+    const payload = {
+      id: editingEntryId || `meal-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      user_id: session.user.id,
+      food: food,
+      food_key: food,
+      meal_type: meal,
+      consumed_on: currentDate,
+      amount,
+      unit,
+      calories: Number(converted.calories || 0),
+      protein: Number(converted.protein || 0),
+      carbs: Number(converted.carbs || 0),
+      fats: Number(converted.fats || 0),
+      fiber: Number(converted.fiber || 0),
+      recipe_id: null,
+      recipe_name: null,
+      total_grams: null,
+      consumed_grams: null,
+      portion_percent: null,
+      ingredients: [],
+      discarded: false
+    };
+    if (editingEntryId) {
+      const { error } = await client.from('meals').update(payload).eq('id', editingEntryId).eq('user_id', session.user.id);
+      if (error) {
+        console.error('Meal update failed:', error);
+        alert('Alimentul nu a putut fi actualizat.');
+        document.querySelector('#meal-error').textContent = error.message || 'A apărut o eroare la actualizarea jurnalului.';
+        return;
+      }
+    } else {
+      const { data, error } = await client.from('meals').insert([payload]);
+      if (error) {
+        console.error('Meal insert failed:', error);
+        alert('Alimentul nu a putut fi salvat.');
+        document.querySelector('#meal-error').textContent = error.message || 'A apărut o eroare la salvarea jurnalului.';
+        return;
+      }
+      console.log('Meal insert success:', data);
+    }
+    await hydrateJournalFromSupabase();
+    closeMealModal();
+    renderMeals();
+    return;
+  }
+
   const journal = getDayJournal();
   if (editingEntryId) {
     Object.values(journal[currentDate]).forEach((entries) => {
@@ -529,7 +697,7 @@ document.querySelector('#meal-form').addEventListener('submit', (event) => {
   closeMealModal(); renderMeals();
 });
 
-document.querySelector('#meals-list').addEventListener('click', (event) => {
+document.querySelector('#meals-list').addEventListener('click', async (event) => {
   const favorite = event.target.closest('[data-favorite]');
   const edit = event.target.closest('[data-edit]');
   const remove = event.target.closest('[data-delete]');
@@ -546,6 +714,18 @@ document.querySelector('#meals-list').addEventListener('click', (event) => {
     } else if (entry) openMealModal(edit.dataset.meal, entry);
   }
   if (remove) {
+    if (hasActiveSupabaseUser()) {
+      const session = window.__activeSupabaseSession;
+      const client = window.__supabaseClient;
+      const { error } = await client.from('meals').delete().eq('id', remove.dataset.delete).eq('user_id', session.user.id);
+      if (error) {
+        console.error('Nu am putut șterge alimentul din public.meals.', error);
+        return;
+      }
+      await hydrateJournalFromSupabase();
+      renderMeals();
+      return;
+    }
     const journal = getDayJournal();
     journal[currentDate][remove.dataset.meal] = journal[currentDate][remove.dataset.meal].filter((entry) => entry.id !== remove.dataset.delete);
     saveStorage(storageKeys.journal, journal); renderMeals();
@@ -570,7 +750,7 @@ function selectJournalDate(dateValue) {
 function shiftJournalDate(days) {
   const date = new Date(`${currentDate}T12:00:00`);
   date.setDate(date.getDate() + days);
-  selectJournalDate(date.toISOString().slice(0, 10));
+  selectJournalDate(getLocalDateString(date));
 }
 
 dateInput.addEventListener('change', () => selectJournalDate(dateInput.value || today));
@@ -1282,6 +1462,8 @@ const accountStatus = document.querySelector('#account-status');
 let activeSupabaseSession = null;
 const synchronizedStorageKeys = ['calorie-calculator-journal', 'calorie-calculator-favorites', 'calorie-calculator-goals', 'calorie-calculator-recipes', 'calorie-calculator-recipe-folders', 'calorie-calculator-custom-foods', 'calorie-calculator-deleted-foods'];
 let supabaseSyncTimer = null;
+let profileRealtimeChannel = null;
+let mealsRealtimeChannel = null;
 
 function localAppDataSnapshot() {
   return Object.fromEntries(synchronizedStorageKeys.map((key) => {
@@ -1299,6 +1481,35 @@ function migrateLegacyAccountData() {
     if (scopedKey === key || localStorage.getItem(scopedKey) !== null) return;
     const legacyValue = localStorage.getItem(key);
     if (legacyValue !== null) localStorage.setItem(scopedKey, legacyValue);
+  });
+}
+
+function migrateUserScopedStorageForSession(session) {
+  if (!session?.user?.id) return;
+  const userKey = String(session.user.id);
+  synchronizedStorageKeys.forEach((key) => {
+    const targetKey = `${key}::${encodeURIComponent(userKey)}`;
+    if (localStorage.getItem(targetKey) !== null) return;
+
+    let sourceKey = '';
+    let sourceValue = null;
+    Object.keys(localStorage).forEach((localKey) => {
+      if (!localKey.startsWith(`${key}::`)) return;
+      if (localKey === targetKey) return;
+      try {
+        const parsed = JSON.parse(localStorage.getItem(localKey));
+        if (parsed !== null && (sourceValue === null || String(localStorage.getItem(localKey)).length > String(localStorage.getItem(sourceKey)).length)) {
+          sourceValue = parsed;
+          sourceKey = localKey;
+        }
+      } catch {
+        // ignore invalid cached entries
+      }
+    });
+
+    if (sourceValue !== null && sourceKey) {
+      localStorage.setItem(targetKey, JSON.stringify(sourceValue));
+    }
   });
 }
 
@@ -1373,14 +1584,16 @@ async function syncAppDataToSupabase() {
   const { data: profile } = await client.from('profiles').select('settings').eq('id', session.user.id).maybeSingle();
   const localData = localAppDataSnapshot();
   const cloudData = profile?.settings?.calorieCalculatorData || {};
-  const snapshot = mergeAppData(localData, cloudData);
-  synchronizedStorageKeys.forEach((key) => { if (snapshot[key] !== null && snapshot[key] !== undefined) localStorage.setItem(getStorageKey(key), JSON.stringify(snapshot[key])); });
+  const snapshot = { ...mergeAppData(localData, cloudData) };
+  delete snapshot['calorie-calculator-journal'];
+  const syncableKeys = synchronizedStorageKeys.filter((key) => key !== storageKeys.journal);
+  syncableKeys.forEach((key) => { if (snapshot[key] !== null && snapshot[key] !== undefined) localStorage.setItem(getStorageKey(key), JSON.stringify(snapshot[key])); });
   const { error } = await client.from('profiles').upsert({ id: session.user.id, settings: { ...(profile?.settings || {}), calorieCalculatorData: snapshot } }, { onConflict: 'id' });
   if (error) console.error('Nu am putut sincroniza datele aplicației.', error);
 }
 
 function queueSupabaseSync(key) {
-  if (!synchronizedStorageKeys.includes(key) || !window.__activeSupabaseSession || !window.__supabaseClient) return;
+  if (!synchronizedStorageKeys.includes(key) || key === storageKeys.journal || !window.__activeSupabaseSession || !window.__supabaseClient) return;
   window.clearTimeout(supabaseSyncTimer);
   supabaseSyncTimer = window.setTimeout(() => { syncAppDataToSupabase(); }, 250);
 }
@@ -1391,8 +1604,9 @@ async function restoreAppDataFromSupabase(session) {
   const { data: profile } = await supabaseClient.from('profiles').select('settings').eq('id', session.user.id).maybeSingle();
   const cloudData = profile?.settings?.calorieCalculatorData;
   if (cloudData) {
-    const mergedData = mergeAppData(localAppDataSnapshot(), cloudData);
-    synchronizedStorageKeys.forEach((key) => {
+    const mergedData = { ...mergeAppData(localAppDataSnapshot(), cloudData) };
+    delete mergedData['calorie-calculator-journal'];
+    synchronizedStorageKeys.filter((key) => key !== storageKeys.journal).forEach((key) => {
       if (mergedData[key] !== null && mergedData[key] !== undefined) localStorage.setItem(getStorageKey(key), JSON.stringify(mergedData[key]));
     });
     Object.assign(foodDatabase, mergedData['calorie-calculator-custom-foods'] || {});
@@ -1446,10 +1660,72 @@ function setProtectedPagesVisible() {
   document.querySelectorAll('.app-page, .mode-button[data-page]').forEach((item) => { item.hidden = false; });
 }
 
+function unsubscribeRealtimeSync() {
+  if (profileRealtimeChannel) {
+    supabaseClient?.removeChannel(profileRealtimeChannel);
+    profileRealtimeChannel = null;
+  }
+  if (mealsRealtimeChannel) {
+    supabaseClient?.removeChannel(mealsRealtimeChannel);
+    mealsRealtimeChannel = null;
+  }
+}
+
+async function refreshAuthenticatedData(session) {
+  if (!session?.user) return;
+  await restoreAppDataFromSupabase(session);
+  restoreCalculatorProfileFromSupabase(session);
+  await hydrateJournalFromSupabase();
+  renderMeals();
+  if (window.location.hash === '#weekly-report-page') refreshWeeklyReport();
+}
+
+function subscribeToRealtimeUserChanges(session) {
+  if (!supabaseClient || !session?.user) return;
+  unsubscribeRealtimeSync();
+
+  profileRealtimeChannel = supabaseClient.channel('profile-settings-sync');
+  profileRealtimeChannel.on('postgres_changes', {
+    event: '*',
+    schema: 'public',
+    table: 'profiles',
+    filter: `id=eq.${session.user.id}`
+  }, async () => {
+    await refreshAuthenticatedData(session);
+  });
+
+  mealsRealtimeChannel = supabaseClient.channel('meals-sync');
+  mealsRealtimeChannel.on('postgres_changes', {
+    event: '*',
+    schema: 'public',
+    table: 'meals',
+    filter: `user_id=eq.${session.user.id}`
+  }, async () => {
+    await refreshAuthenticatedData(session);
+  });
+
+  profileRealtimeChannel.subscribe();
+  mealsRealtimeChannel.subscribe();
+}
+
+function persistAuthenticatedSession(session) {
+  if (!session?.user) {
+    localStorage.removeItem('calorie-calculator-session');
+    return;
+  }
+
+  localStorage.setItem('calorie-calculator-session', JSON.stringify({
+    user_id: session.user.id,
+    email: session.user.email,
+    last_login: new Date().toISOString()
+  }));
+}
+
 function renderAccountState(session) {
   const signedIn = Boolean(session);
   activeSupabaseSession = session;
   window.__activeSupabaseSession = session;
+  persistAuthenticatedSession(session);
   if (window.location.hash === '#weekly-report-page') refreshWeeklyReport();
   setProtectedPagesVisible();
   document.querySelector('#login-form').hidden = signedIn;
@@ -1458,14 +1734,45 @@ function renderAccountState(session) {
   document.querySelector('.auth-tabs').hidden = signedIn;
   document.querySelector('.auth-reset-link').hidden = signedIn;
   accountStatus.hidden = !signedIn;
-  if (!signedIn) return;
+  if (!signedIn) {
+    unsubscribeRealtimeSync();
+    journalSupabaseCache = {};
+    accountStatus.innerHTML = '';
+    renderMeals();
+    return;
+  }
   migrateLegacyAccountData();
+  migrateUserScopedStorageForSession(session);
   const name = session.user.user_metadata?.display_name || session.user.user_metadata?.name || session.user.email.split('@')[0];
   accountStatus.innerHTML = `<strong>Salut, ${name}!</strong><br>Ești autentificat cu ${session.user.email}.<br><button class="reset-button" type="button" id="logout-button">Ieși din cont</button>`;
-  document.querySelector('#logout-button').addEventListener('click', async () => { await supabaseClient.auth.signOut(); });
-  restoreAppDataFromSupabase(session);
-  restoreCalculatorProfileFromSupabase(session);
+  document.querySelector('#logout-button').addEventListener('click', async () => {
+    await supabaseClient.auth.signOut();
+    renderAccountState(null);
+  });
+  refreshAuthenticatedData(session);
+  subscribeToRealtimeUserChanges(session);
   if (window.location.hash === '#account-page') window.location.hash = 'dashboard-page';
+}
+
+function initializeSupabaseSession() {
+  if (!supabaseClient) {
+    renderAccountState(null);
+    return;
+  }
+  supabaseClient.auth.onAuthStateChange((_event, session) => {
+    renderAccountState(session);
+  });
+  supabaseClient.auth.getSession().then(({ data: { session }, error }) => {
+    if (error) {
+      console.error('Supabase session restore failed.', error);
+      renderAccountState(null);
+      return;
+    }
+    renderAccountState(session);
+  }).catch((error) => {
+    console.error('Supabase session bootstrap failed.', error);
+    renderAccountState(null);
+  });
 }
 
 authTabs.forEach((tab) => tab.addEventListener('click', () => {
@@ -1503,9 +1810,4 @@ document.querySelector('#reset-form').addEventListener('submit', async (event) =
   setAuthError('#reset-error', error?.message || 'Ți-am trimis un link pentru resetarea parolei.');
 });
 
-if (supabaseClient) {
-  supabaseClient.auth.onAuthStateChange((_event, session) => renderAccountState(session));
-  supabaseClient.auth.getSession().then(({ data: { session } }) => renderAccountState(session));
-} else {
-  renderAccountState(null);
-}
+initializeSupabaseSession();
