@@ -647,8 +647,12 @@ function showRecipeFolderForm(folder = null) {
     if (!name) return;
     const folders = recipeFolders();
     if (folders.some((item) => item.id !== folder?.id && item.name.toLocaleLowerCase('ro') === name.toLocaleLowerCase('ro'))) return;
-    if (folder) folder.name = name;
-    else folders.push({ id: `folder-${Date.now()}`, name });
+    if (folder) {
+      const index = folders.findIndex((item) => item.id === folder.id);
+      if (index >= 0) folders[index] = { ...folders[index], name };
+    } else {
+      folders.push({ id: `folder-${Date.now()}`, name });
+    }
     saveStorage(recipeFoldersStorageKey, folders);
     syncRecipeFoldersToSupabase();
     form.remove();
@@ -1146,10 +1150,11 @@ document.querySelector('#recipe-folder-tabs').addEventListener('click', (event) 
   if (remove) {
     const folder = recipeFolders().find((item) => item.id === remove.dataset.deleteFolder);
     if (!folder || !window.confirm(`Ștergi folderul „${folder.name}”? Rețetele vor rămâne în „Fără folder”.`)) return;
+    const folders = recipeFolders().filter((item) => item.id !== folder.id);
     const tombstones = deletedRecipeFolderIds();
     tombstones[folder.id] = Date.now();
     saveStorage(deletedRecipeFoldersStorageKey, tombstones);
-    saveStorage(recipeFoldersStorageKey, recipeFolders().filter((item) => item.id !== folder.id));
+    saveStorage(recipeFoldersStorageKey, folders);
     const recipes = readStorage(recipeStorageKey, []).map((recipe) => recipe.folderId === folder.id ? { ...recipe, folderId: '' } : recipe);
     saveStorage(recipeStorageKey, recipes);
     if (activeRecipeFolder === folder.id) activeRecipeFolder = '';
