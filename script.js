@@ -10,7 +10,8 @@ const userScopedStorageKeys = new Set([
   'calorie-calculator-recipes',
   'calorie-calculator-recipe-folders',
   'calorie-calculator-custom-foods',
-  'calorie-calculator-deleted-foods'
+  'calorie-calculator-deleted-foods',
+  'calorie-calculator-deleted-recipe-folders'
 ]);
 
 function getStorageKey(key) {
@@ -589,6 +590,7 @@ prepareMealForm(); renderFavorites(); renderMeals(); restoreCalculatorProfile();
 
 const recipeStorageKey = 'calorie-calculator-recipes';
 const recipeFoldersStorageKey = 'calorie-calculator-recipe-folders';
+const deletedRecipeFoldersStorageKey = 'calorie-calculator-deleted-recipe-folders';
 let activeRecipeFolder = '';
 let editingRecipeId = null;
 let recipeMealContext = null;
@@ -600,6 +602,13 @@ let ingredientCounter = 0;
 let activeRecipeServings = 1;
 
 function recipeFolders() { return readStorage(recipeFoldersStorageKey, []); }
+
+function deletedRecipeFolderIds() { return readStorage(deletedRecipeFoldersStorageKey, {}); }
+
+function pruneDeletedRecipeFolders(folders, tombstones = deletedRecipeFolderIds()) {
+  const deletedIds = tombstones && typeof tombstones === 'object' ? tombstones : {};
+  return (Array.isArray(folders) ? folders : []).filter((folder) => !deletedIds[folder.id]);
+}
 
 function ensureRecipeFolderField() {
   let field = document.querySelector('#recipe-folder')?.closest('.recipe-folder-field');
@@ -1137,6 +1146,9 @@ document.querySelector('#recipe-folder-tabs').addEventListener('click', (event) 
   if (remove) {
     const folder = recipeFolders().find((item) => item.id === remove.dataset.deleteFolder);
     if (!folder || !window.confirm(`Ștergi folderul „${folder.name}”? Rețetele vor rămâne în „Fără folder”.`)) return;
+    const tombstones = deletedRecipeFolderIds();
+    tombstones[folder.id] = Date.now();
+    saveStorage(deletedRecipeFoldersStorageKey, tombstones);
     saveStorage(recipeFoldersStorageKey, recipeFolders().filter((item) => item.id !== folder.id));
     const recipes = readStorage(recipeStorageKey, []).map((recipe) => recipe.folderId === folder.id ? { ...recipe, folderId: '' } : recipe);
     saveStorage(recipeStorageKey, recipes);
@@ -1280,7 +1292,7 @@ const authTabs = document.querySelectorAll('[data-auth-tab]');
 const authForms = document.querySelectorAll('[data-auth-form]');
 const accountStatus = document.querySelector('#account-status');
 let activeSupabaseSession = null;
-const synchronizedStorageKeys = ['calorie-calculator-journal', 'calorie-calculator-favorites', 'calorie-calculator-goals', 'calorie-calculator-recipes', 'calorie-calculator-recipe-folders', 'calorie-calculator-custom-foods', 'calorie-calculator-deleted-foods'];
+const synchronizedStorageKeys = ['calorie-calculator-journal', 'calorie-calculator-favorites', 'calorie-calculator-goals', 'calorie-calculator-recipes', 'calorie-calculator-recipe-folders', 'calorie-calculator-custom-foods', 'calorie-calculator-deleted-foods', 'calorie-calculator-deleted-recipe-folders'];
 let supabaseSyncTimer = null;
 
 function localAppDataSnapshot() {
@@ -1302,10 +1314,13 @@ function migrateLegacyAccountData() {
   });
 }
 
-function mergeRecipeFolders(localFolders, cloudFolders) {
-  const merged = [...(Array.isArray(cloudFolders) ? cloudFolders : [])];
-  (Array.isArray(localFolders) ? localFolders : []).forEach((folder) => {
-    if (!merged.some((item) => item.id === folder.id || item.name.toLocaleLowerCase('ro') === folder.name.toLocaleLowerCase('ro'))) merged.push(folder);
+function mergeRecipeFolders(localFolders, cloudFolders, tombstones = deletedRecipeFolderIds()) {
+  const localList = pruneDeletedRecipeFolders(localFolders, tombstones);
+  const cloudList = pruneDeletedRecipeFolders(cloudFolders, tombstones);
+  const merged = [...(Array.isArray(cloudList) ? cloudList : [])];
+  (Array.isArray(localList) ? localList : []).forEach((folder) => {
+    const name = String(folder?.name || '').trim().toLocaleLowerCase('ro');
+    if (!merged.some((item) => item.id === folder.id || (name && String(item?.name || '').trim().toLocaleLowerCase('ro') === name))) merged.push(folder);
   });
   return merged;
 }
@@ -1314,13 +1329,15 @@ async function syncRecipeFoldersToSupabase() {
   const session = window.__activeSupabaseSession;
   const client = window.__supabaseClient;
   if (!client || !session?.user) return;
-  const localFolders = readStorage(recipeFoldersStorageKey, []);
+  const tombstones = deletedRecipeFolderIds();
+  const localFolders = pruneDeletedRecipeFolders(readStorage(recipeFoldersStorageKey, []), tombstones);
   const { data: profile } = await client.from('profiles').select('settings').eq('id', session.user.id).maybeSingle();
   const settings = profile?.settings || {};
   const cloudData = settings.calorieCalculatorData || {};
-  const folders = mergeRecipeFolders(localFolders, cloudData[recipeFoldersStorageKey]);
+  const cloudFolders = pruneDeletedRecipeFolders(cloudData[recipeFoldersStorageKey], tombstones);
+  const folders = mergeRecipeFolders(localFolders, cloudFolders, tombstones);
   localStorage.setItem(getStorageKey(recipeFoldersStorageKey), JSON.stringify(folders));
-  const nextData = { ...cloudData, [recipeFoldersStorageKey]: folders };
+  const nextData = { ...cloudData, [recipeFoldersStorageKey]: folders, [deletedRecipeFoldersStorageKey]: tombstones };
   const { error } = await client.from('profiles').upsert({ id: session.user.id, settings: { ...settings, calorieCalculatorData: nextData } }, { onConflict: 'id' });
   if (error) console.error('Nu am putut sincroniza folderele rețetelor.', error);
   renderRecipeFolderTabs();
@@ -1354,12 +1371,14 @@ async function restoreAppDataFromSupabase(session) {
   const cloudData = profile?.settings?.calorieCalculatorData;
   if (cloudData) {
     const cloudHasRecipeFolders = Object.prototype.hasOwnProperty.call(cloudData, 'calorie-calculator-recipe-folders');
-    const localFolders = readStorage(recipeFoldersStorageKey, []);
-    const mergedFolders = mergeRecipeFolders(localFolders, cloudData['calorie-calculator-recipe-folders']);
+    const deletedFolders = cloudData[deletedRecipeFoldersStorageKey] || {};
+    const localFolders = pruneDeletedRecipeFolders(readStorage(recipeFoldersStorageKey, []), deletedFolders);
+    const mergedFolders = mergeRecipeFolders(localFolders, pruneDeletedRecipeFolders(cloudData['calorie-calculator-recipe-folders'], deletedFolders), deletedFolders);
     synchronizedStorageKeys.forEach((key) => {
       if (cloudData[key] !== null && cloudData[key] !== undefined) localStorage.setItem(getStorageKey(key), JSON.stringify(cloudData[key]));
     });
     if (mergedFolders.length) localStorage.setItem(getStorageKey(recipeFoldersStorageKey), JSON.stringify(mergedFolders));
+    if (deletedFolders && Object.keys(deletedFolders).length) localStorage.setItem(getStorageKey(deletedRecipeFoldersStorageKey), JSON.stringify(deletedFolders));
     Object.assign(foodDatabase, cloudData['calorie-calculator-custom-foods'] || {});
     Object.keys(cloudData['calorie-calculator-deleted-foods'] || {}).forEach((key) => { delete foodDatabase[key]; });
     prepareMealForm();
