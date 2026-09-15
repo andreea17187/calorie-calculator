@@ -498,3 +498,10 @@ footer { display: flex; justify-content: space-between; padding: 38px 7.5% 30px;
   .recipe-card-actions .text-button { grid-column: 1 / -1; }
   .recipe-card-actions .icon-button { flex: none; width: 100%; }
 }
+
+.date-navigation .date-nav-button, .date-navigation .current-day-button { flex: 0 0 44px; width: 44px; height: 44px; }
+.date-navigation .current-day-button { font-size: 0 !important; }
+@media (max-width: 600px), (hover: none) and (pointer: coarse) {
+  .date-navigation { grid-template-columns: 44px minmax(0, 1fr) 44px 44px 44px; gap: 6px; }
+  .date-navigation .date-nav-button, .date-navigation .current-day-button { width: 44px; height: 44px; }
+}
