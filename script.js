@@ -271,6 +271,7 @@ const dateInput = document.querySelector('#selected-date');
 const previousDayButton = document.querySelector('#previous-day');
 const nextDayButton = document.querySelector('#next-day');
 const calendarButton = document.querySelector('#calendar-button');
+const currentDayButton = document.querySelector('#current-day');
 const storageKeys = { journal: 'calorie-calculator-journal', favorites: 'calorie-calculator-favorites', goals: 'calorie-calculator-goals' };
 let currentDate = today;
 let editingEntryId = null;
@@ -558,13 +559,11 @@ document.querySelectorAll('[data-close-food]').forEach((button) => button.addEve
 const favoritesList = document.querySelector('#favorites-list');
 if (favoritesList) favoritesList.addEventListener('click', (event) => { const add = event.target.closest('[data-favorite-add]'); if (add) openMealModal(); if (add) document.querySelector('#meal-food').value = add.dataset.favoriteAdd; });
 dateInput.value = today;
-dateInput.max = today;
 document.querySelector('#selected-date-label').textContent = formatDateDisplay(today);
 function selectJournalDate(dateValue) {
-  currentDate = dateValue > today ? today : dateValue;
+  currentDate = dateValue || today;
   dateInput.value = currentDate;
   document.querySelector('#selected-date-label').textContent = formatDateDisplay(currentDate);
-  nextDayButton.disabled = currentDate === today;
   renderMeals();
 }
 
@@ -577,6 +576,7 @@ function shiftJournalDate(days) {
 dateInput.addEventListener('change', () => selectJournalDate(dateInput.value || today));
 previousDayButton.addEventListener('click', () => shiftJournalDate(-1));
 nextDayButton.addEventListener('click', () => shiftJournalDate(1));
+currentDayButton.addEventListener('click', () => selectJournalDate(today));
 calendarButton.addEventListener('click', () => {
   if (typeof dateInput.showPicker === 'function') dateInput.showPicker();
   else dateInput.click();

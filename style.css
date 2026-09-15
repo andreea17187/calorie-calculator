@@ -253,8 +253,9 @@ footer { display: flex; justify-content: space-between; padding: 38px 7.5% 30px;
 /* One visual date field: the native control remains clickable but has no second border. */
 .date-picker { width: 150px; height: 63px; position: relative; }
 .date-picker::after { content: ""; position: absolute; z-index: 0; right: 0; bottom: 0; left: 0; height: 44px; border: 1px solid var(--line); border-radius: 8px; background: white; }
-.date-picker strong { position: absolute; z-index: 1; left: 13px; bottom: 14px; margin: 0; color: var(--green); font-family: Outfit, sans-serif; font-size: 17px; line-height: 1; letter-spacing: .2px; pointer-events: none; }
+.date-picker strong { position: absolute; z-index: 1; right: 0; bottom: 14px; left: 0; margin: 0; color: var(--green); font-family: Outfit, sans-serif; font-size: 17px; line-height: 1; letter-spacing: .2px; text-align: center; pointer-events: none; }
 .date-picker input { position: relative; z-index: 2; width: 150px; height: 44px; margin: 0; padding: 0 12px; border: 0; border-radius: 8px; background: transparent; color: transparent !important; font-size: 0 !important; text-indent: -9999px; caret-color: transparent; }
+.current-day-button { flex: 0 0 auto; width: 44px; height: 44px; padding: 0; border-radius: 8px; font-size: 0; }
 .meal-total small { display: block; margin-top: 3px; color: var(--muted); font-size: 9px; font-weight: 400; }
 .current-preparations { width: 100%; order: 2; padding: 13px 15px; border: 1px solid var(--line); border-radius: 11px; background: #fff; box-shadow: 0 8px 22px rgba(32,70,57,.05); }
 .dashboard-side > .goals-card { order: 1; }
@@ -286,7 +287,7 @@ footer { display: flex; justify-content: space-between; padding: 38px 7.5% 30px;
   .dashboard-topbar > div:first-child { width: 100%; }
   .dashboard-topbar h1 { font-size: clamp(36px, 11vw, 48px); }
   .dashboard-date-label { max-width: 280px; }
-  .date-navigation { width: 100%; display: grid; grid-template-columns: 38px minmax(0, 1fr) 44px 38px; align-items: end; gap: 6px; }
+  .date-navigation { width: 100%; display: grid; grid-template-columns: 38px minmax(0, 1fr) auto 44px 38px; align-items: end; gap: 6px; }
   .date-picker, .date-picker input { width: 100% !important; }
   .date-nav-button { width: 100%; }
   .dashboard-layout { display: flex; flex-direction: column; gap: 18px; }
